@@ -13,12 +13,12 @@ public class PortScanner {
             22,    // SSH
             80,    // HTTP
             443,   // HTTPS
-            445,   // Compartilhamento de arquivos (Windows/SMB)
-            3389,  // Remote Desktop
-            5353,  // mDNS (celulares, smart devices)
-            8080,  // HTTP alternativo / servidores de dev
-            8888,  // outro HTTP alternativo comum
-            9100,   // impressoras de rede
+            445,
+            3389,
+            5353,
+            8080,
+            8888,
+            9100,
             8000
     };
 
@@ -54,7 +54,6 @@ public class PortScanner {
         executor.shutdown();
         executor.awaitTermination(10, TimeUnit.SECONDS);
 
-        // Ordena pra ficar mais legível no output
         Collections.sort(portasAbertas);
         return portasAbertas;
     }
@@ -63,8 +62,6 @@ public class PortScanner {
         PortScanner scanner = new PortScanner();
 
         // Testa nos IPs que o DeviceScanner encontrou
-        // (por enquanto colocamos manualmente, depois isso vai vir
-        // automaticamente encadeado com o DeviceScanner)
         List<String> ipsParaTestar = List.of("192.168.1.1", "192.168.1.7");
 
         for (String ip : ipsParaTestar) {
