@@ -66,4 +66,56 @@ public class ScanRepository {
         }
     }
 
+    public List<String> buscarUltimosTimestamps() {
+        String sql = "SELECT DISTINCT data_hora FROM scan_resultado ORDER BY data_hora DESC LIMIT 2";
+        List<String> timestamps = new java.util.ArrayList<>();
+
+        try (Connection conn = DriverManager.getConnection(URL);
+             Statement stmt = conn.createStatement();
+             ResultSet rs = stmt.executeQuery(sql)) {
+
+            while (rs.next()) {
+                timestamps.add(rs.getString("data_hora"));
+            }
+
+        } catch (SQLException e) {
+            throw new RuntimeException("Erro ao buscar timestamps", e);
+        }
+        return timestamps;
+    }
+
+    public List<Device> buscarPorTimestamp(String timestamp) {
+        String sql = "SELECT ip, portas_abertas FROM scan_resultado WHERE data_hora = ?";
+        List<Device> devices = new java.util.ArrayList<>();
+
+        try (Connection conn = DriverManager.getConnection(URL);
+             PreparedStatement stmt = conn.prepareStatement(sql)) {
+
+            stmt.setString(1, timestamp);
+            ResultSet rs = stmt.executeQuery();
+
+            while (rs.next()) {
+                String ip = rs.getString("ip");
+                String portasTexto = rs.getString("portas_abertas");
+                List<Integer> portas = parsePortas(portasTexto);
+                devices.add(new Device(ip, portas));
+            }
+
+        } catch (SQLException e) {
+            throw new RuntimeException("Erro ao buscar devices por timestamp", e);
+        }
+        return devices;
+    }
+
+    private List<Integer> parsePortas(String texto) {
+        List<Integer> portas = new java.util.ArrayList<>();
+        String limpo = texto.replace("[", "").replace("]", "").trim();
+        if (limpo.isEmpty()) return portas;
+
+        for (String parte : limpo.split(",")) {
+            portas.add(Integer.parseInt(parte.trim()));
+        }
+        return portas;
+    }
+
 }

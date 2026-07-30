@@ -1,5 +1,6 @@
 package com.gabriel.networkmonitor.scanner;
 
+import com.gabriel.networkmonitor.detector.ChangeDetector;
 import com.gabriel.networkmonitor.model.Device;
 import com.gabriel.networkmonitor.repository.ScanRepository;
 
@@ -47,8 +48,28 @@ public class NetworkScanner {
 
         ScanRepository repository = new ScanRepository();
         repository.inicializar();
+
+        List<String> timestampsAntes = repository.buscarUltimosTimestamps();
+
         repository.salvarScan(resultado);
         System.out.println("\nResultado salvo no banco (network-monitor.db)");
+
+        if (!timestampsAntes.isEmpty()) {
+            String timestampAnterior = timestampsAntes.get(0);
+            List<Device> scanAnterior = repository.buscarPorTimestamp(timestampAnterior);
+
+            ChangeDetector detector = new ChangeDetector();
+            List<String> mudancas = detector.detectarMudancas(scanAnterior, resultado);
+
+            System.out.println("\n=== Mudanças detectadas desde o último scan ===");
+            if (mudancas.isEmpty()) {
+                System.out.println("Nenhuma mudança. Rede está como estava.");
+            } else {
+                mudancas.forEach(System.out::println);
+            }
+        } else {
+            System.out.println("\nEste é o primeiro scan salvo, nada para comparar ainda.");
+        }
 
         System.out.println("\n=== Histórico completo ===");
         repository.listarTodos();
