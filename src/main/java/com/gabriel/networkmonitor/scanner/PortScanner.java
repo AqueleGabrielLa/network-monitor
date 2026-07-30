@@ -50,21 +50,4 @@ public class PortScanner {
         return portasAbertas;
     }
 
-    public static void main(String[] args) throws InterruptedException {
-        PortScanner scanner = new PortScanner();
-
-        List<String> ipsParaTestar = List.of("192.168.1.1", "192.168.1.7");
-
-        for (String ip : ipsParaTestar) {
-            System.out.println("\nEscaneando portas de " + ip + " ...");
-            List<Integer> abertas = scanner.scanIp(ip);
-
-            if (abertas.isEmpty()) {
-                System.out.println("  Nenhuma porta comum encontrada aberta.");
-            } else {
-                System.out.println("  Portas abertas: " + abertas);
-            }
-        }
-    }
-
 }

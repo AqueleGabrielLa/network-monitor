@@ -28,10 +28,16 @@ public class NetworkScanner {
     }
 
     public static void main(String[] args) throws InterruptedException {
+
+        if (args.length < 1) {
+            System.out.println("Uso: java NetworkScanner <subnet>");
+            System.out.println("Exemplo: java NetworkScanner 192.168.1");
+            return;
+        }
+
         NetworkScanner scanner = new NetworkScanner();
 
-        // prefixo da rede
-        String subnet = "192.168.1";
+        String subnet = args[0];
 
         List<Device> resultado = scanner.scanCompleto(subnet);
 

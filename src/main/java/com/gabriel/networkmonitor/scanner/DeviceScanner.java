@@ -36,20 +36,4 @@ public class DeviceScanner {
         return ativos;
     }
 
-    public static void main(String[] args) throws InterruptedException {
-        DeviceScanner scanner = new DeviceScanner();
-
-        // prefixo da rede
-        String subnet = "192.168.1";
-
-        System.out.println("Escaneando rede " + subnet + ".0/24 ...");
-        long inicio = System.currentTimeMillis();
-
-        List<String> dispositivosAtivos = scanner.scanRange(subnet);
-
-        long duracao = System.currentTimeMillis() - inicio;
-        System.out.println("\nEscaneamento concluído em " + duracao + "ms");
-        System.out.println("Dispositivos ativos encontrados: " + dispositivosAtivos.size());
-        dispositivosAtivos.forEach(System.out::println);
-    }
 }
