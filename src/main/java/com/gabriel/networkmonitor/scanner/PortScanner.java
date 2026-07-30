@@ -22,23 +22,15 @@ public class PortScanner {
             8000
     };
 
-    /**
-     * Testa se uma porta específica está aberta em um IP.
-     * Usamos conexão TCP direta em vez de ping.
-     */
     public boolean testarPorta(String ip, int porta) {
         try (Socket socket = new Socket()) {
             socket.connect(new InetSocketAddress(ip, porta), TIMEOUT);
-            return true; // conectou = porta aberta
+            return true;
         } catch (Exception e) {
-            return false; // recusou ou deu timeout = porta fechada/filtrada
+            return false;
         }
     }
 
-    /**
-     * Escaneia todas as portas comuns em um único IP.
-     * Retorna a lista de portas que responderam.
-     */
     public List<Integer> scanIp(String ip) throws InterruptedException {
         List<Integer> portasAbertas = new CopyOnWriteArrayList<>();
         ExecutorService executor = Executors.newFixedThreadPool(PORTAS_COMUNS.length);
@@ -61,7 +53,6 @@ public class PortScanner {
     public static void main(String[] args) throws InterruptedException {
         PortScanner scanner = new PortScanner();
 
-        // Testa nos IPs que o DeviceScanner encontrou
         List<String> ipsParaTestar = List.of("192.168.1.1", "192.168.1.7");
 
         for (String ip : ipsParaTestar) {

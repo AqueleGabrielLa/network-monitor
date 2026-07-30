@@ -7,19 +7,11 @@ import com.gabriel.networkmonitor.repository.ScanRepository;
 import java.util.ArrayList;
 import java.util.List;
 
-/**
- * Orquestra o processo completo: descobre os dispositivos ativos
- * e verifica quais portas estão abertas neles.
- */
 public class NetworkScanner {
 
     private final DeviceScanner deviceScanner = new DeviceScanner();
     private final PortScanner portScanner = new PortScanner();
 
-    /**
-     * Executa o scan completo de uma faixa de rede
-     * e retorna a lista de Devices já com IP + portas abertas.
-     */
     public List<Device> scanCompleto(String subnet) throws InterruptedException {
         System.out.println("Etapa 1: procurando dispositivos ativos...");
         List<String> ipsAtivos = deviceScanner.scanRange(subnet);

@@ -9,25 +9,21 @@ public class ChangeDetector {
     public List<String> detectarMudancas(List<Device> scanAnterior, List<Device> scanAtual) {
         List<String> eventos = new ArrayList<>();
 
-        // Indexamos por IP pra facilitar a comparação (Map<IP, Device>)
         Map<String, Device> anteriorPorIp = indexarPorIp(scanAnterior);
         Map<String, Device> atualPorIp = indexarPorIp(scanAtual);
 
-        // 1. Dispositivos que estão no scan atual mas não estavam no anterior -> NOVO
         for (String ip : atualPorIp.keySet()) {
             if (!anteriorPorIp.containsKey(ip)) {
                 eventos.add("[NOVO DISPOSITIVO] " + ip + " apareceu na rede");
             }
         }
 
-        // 2. Dispositivos que estavam no anterior mas não estão mais no atual -> SUMIU
         for (String ip : anteriorPorIp.keySet()) {
             if (!atualPorIp.containsKey(ip)) {
                 eventos.add("[DISPOSITIVO SUMIU] " + ip + " não respondeu mais");
             }
         }
 
-        // 3. Dispositivos presentes nos dois -> comparar as portas
         for (String ip : atualPorIp.keySet()) {
             if (anteriorPorIp.containsKey(ip)) {
                 Device antes = anteriorPorIp.get(ip);

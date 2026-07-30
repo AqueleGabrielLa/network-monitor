@@ -2,10 +2,6 @@ package com.gabriel.networkmonitor.model;
 
 import java.util.List;
 
-/**
- * Representa um dispositivo encontrado na rede,
- * junto com as portas que estão abertas nele.
- */
 public class Device {
 
     private final String ip;

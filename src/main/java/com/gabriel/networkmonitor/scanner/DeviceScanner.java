@@ -9,15 +9,10 @@ public class DeviceScanner {
     // Timeout em milissegundos pra cada tentativa de ping
     private static final int TIMEOUT = 200;
 
-    /**
-     * Varre uma faixa de IPs (ex: 192.168.0) do host 1 até host 254
-     * e retorna a lista dos que responderam.
-     */
     public List<String> scanRange(String subnet) throws InterruptedException {
         List<String> ativos = new CopyOnWriteArrayList<>(); // thread-safe
 
         // pool de threads
-        // testar 254 IPs um por um sequencialmente seria muito lento (200ms x 254 = quase 1 minuto)
         ExecutorService executor = Executors.newFixedThreadPool(50);
 
         for (int i = 1; i <= 254; i++) {
@@ -30,7 +25,7 @@ public class DeviceScanner {
                         System.out.println("Ativo: " + ip);
                     }
                 } catch (Exception e) {
-                    // IP não respondeu ou erro de rede, ignora e segue
+
                 }
             });
         }
@@ -44,7 +39,7 @@ public class DeviceScanner {
     public static void main(String[] args) throws InterruptedException {
         DeviceScanner scanner = new DeviceScanner();
 
-        // prefixo da rede ("ipconfig" ou "ip a" pra descobrir)
+        // prefixo da rede
         String subnet = "192.168.1";
 
         System.out.println("Escaneando rede " + subnet + ".0/24 ...");
