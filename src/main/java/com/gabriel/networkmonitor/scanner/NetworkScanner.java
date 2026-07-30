@@ -1,6 +1,7 @@
 package com.gabriel.networkmonitor.scanner;
 
 import com.gabriel.networkmonitor.model.Device;
+import com.gabriel.networkmonitor.repository.ScanRepository;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -43,6 +44,14 @@ public class NetworkScanner {
 
         System.out.println("\n=== Resultado final ===");
         resultado.forEach(System.out::println);
+
+        ScanRepository repository = new ScanRepository();
+        repository.inicializar();
+        repository.salvarScan(resultado);
+        System.out.println("\nResultado salvo no banco (network-monitor.db)");
+
+        System.out.println("\n=== Histórico completo ===");
+        repository.listarTodos();
     }
 
 }
