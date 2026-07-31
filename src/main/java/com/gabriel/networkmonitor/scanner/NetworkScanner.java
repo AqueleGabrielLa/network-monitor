@@ -1,6 +1,7 @@
 package com.gabriel.networkmonitor.scanner;
 
 import com.gabriel.networkmonitor.detector.ChangeDetector;
+import com.gabriel.networkmonitor.interfaces.PortScanStrategy;
 import com.gabriel.networkmonitor.model.Device;
 import com.gabriel.networkmonitor.repository.ScanRepository;
 import org.slf4j.Logger;
@@ -14,7 +15,11 @@ public class NetworkScanner {
     private static final Logger logger = LoggerFactory.getLogger(NetworkScanner.class);
 
     private final DeviceScanner deviceScanner = new DeviceScanner();
-    private final PortScanner portScanner = new PortScanner();
+    private final PortScanStrategy portScanner;
+
+    public NetworkScanner(PortScanStrategy strategy) {
+        this.portScanner = strategy;
+    }
 
     public List<Device> fullScan(String subnet) throws InterruptedException {
         logger.info("Etapa 1: procurando dispositivos ativos...");
@@ -39,9 +44,11 @@ public class NetworkScanner {
             return;
         }
 
-        NetworkScanner scanner = new NetworkScanner();
-
         String subnet = args[0];
+        boolean full = args.length > 1 && args[1].equals("--full");
+
+        PortScanStrategy strategy = full ? new FullScanStrategy() : new QuickScanStrategy();
+        NetworkScanner scanner = new NetworkScanner(strategy);
 
         List<Device> result = scanner.fullScan(subnet);
 

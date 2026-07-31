@@ -71,5 +71,5 @@ O banco `network-monitor.db` é criado automaticamente na raiz do projeto na pri
 
 ## Decisões e limitações iniciais
 
-- Portas fixas: Hoje o `PortScanner` testa um conjunto pré-definido de portas (como a 80, 8000, 443, etc), foi como delimitação inicial do escopo, visto que o scan da porta 1 a 65535 por host seria algo que demandaria mais tempo do processo de scaneamento.
+- Portas fixas: Hoje o `QuickScanStrategy` testa um conjunto pré-definido de portas (como a 80, 8000, 443, etc), foi como delimitação inicial do escopo, visto que o scan da porta 1 a 65535 por host seria algo que demandaria mais tempo do processo de scaneamento.
   - Uma evolução para isso será a escolha de um scan rápido, com portas selecionadas como está, ou o scan completo, que se comprometia pela cobertura total, em detrimento do tempo de scan

@@ -1,5 +1,6 @@
 package com.gabriel.networkmonitor.scanner;
 
+import com.gabriel.networkmonitor.interfaces.PortScanStrategy;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -8,23 +9,14 @@ import java.net.Socket;
 import java.util.*;
 import java.util.concurrent.*;
 
-public class PortScanner {
+public class QuickScanStrategy implements PortScanStrategy {
 
-    private static final Logger logger = LoggerFactory.getLogger(PortScanner.class);
+    private static final Logger logger = LoggerFactory.getLogger(QuickScanStrategy.class);
 
     private static final int TIMEOUT = 150;
 
     private static final int[] COMMON_PORTS = {
-            22,    // SSH
-            80,    // HTTP
-            443,   // HTTPS
-            445,
-            3389,
-            5353,
-            8080,
-            8888,
-            9100,
-            8000
+            22, 80, 443, 445, 3389, 5353, 8080, 8888, 9100, 8000
     };
 
     public boolean testPort(String ip, int port) {
@@ -36,6 +28,7 @@ public class PortScanner {
         }
     }
 
+    @Override
     public List<Integer> scanIp(String ip) throws InterruptedException {
         List<Integer> openPorts = new CopyOnWriteArrayList<>();
         ExecutorService executor = Executors.newFixedThreadPool(COMMON_PORTS.length);
@@ -59,5 +52,4 @@ public class PortScanner {
         Collections.sort(openPorts);
         return openPorts;
     }
-
 }
