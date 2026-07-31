@@ -42,7 +42,7 @@ public class ScanRepository {
 
             for (Device device : devices) {
                 stmt.setString(1, device.getIp());
-                stmt.setString(2, device.getOpenPorts().toString());
+                stmt.setString(2, joinPorts(device.getOpenPorts()));
                 stmt.setString(3, now);
                 stmt.executeUpdate();
             }
@@ -113,15 +113,22 @@ public class ScanRepository {
         return devices;
     }
 
-    private List<Integer> parsePorts(String texto) {
+    private List<Integer> parsePorts(String text) {
         List<Integer> ports = new java.util.ArrayList<>();
-        String clean = texto.replace("[", "").replace("]", "").trim();
-        if (clean.isEmpty()) return ports;
+        if (text == null || text.isBlank()) return ports;
 
-        for (String part : clean.split(",")) {
+        for (String part : text.split(",")) {
             ports.add(Integer.parseInt(part.trim()));
         }
         return ports;
+    }
+
+    private String joinPorts(List<Integer> ports) {
+        List<String> textos = new java.util.ArrayList<>();
+        for (Integer port : ports) {
+            textos.add(String.valueOf(port));
+        }
+        return String.join(",", textos);
     }
 
 }
