@@ -5,30 +5,30 @@ import java.util.List;
 public class Device {
 
     private final String ip;
-    private final List<Integer> portasAbertas;
+    private final List<Integer> openPorts;
 
-    public Device(String ip, List<Integer> portasAbertas) {
+    public Device(String ip, List<Integer> openPorts) {
         this.ip = ip;
-        this.portasAbertas = portasAbertas;
+        this.openPorts = openPorts;
     }
 
     public String getIp() {
         return ip;
     }
 
-    public List<Integer> getPortasAbertas() {
-        return portasAbertas;
+    public List<Integer> getOpenPorts() {
+        return openPorts;
     }
 
-    public boolean temPortasAbertas(){
-        return !portasAbertas.isEmpty();
+    public boolean hasOpenPorts(){
+        return !openPorts.isEmpty();
     }
 
     @Override
     public String toString() {
-        if(portasAbertas.isEmpty()){
+        if(openPorts.isEmpty()){
             return ip + " -> nenhuma porta comum aberta";
         }
-        return ip + " -> portas abertas: " + portasAbertas;
+        return ip + " -> portas abertas: " + openPorts;
     }
 }

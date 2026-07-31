@@ -6,62 +6,62 @@ import java.util.*;
 
 public class ChangeDetector {
 
-    public List<String> detectarMudancas(List<Device> scanAnterior, List<Device> scanAtual) {
-        List<String> eventos = new ArrayList<>();
+    public List<String> detect(List<Device> previousScan, List<Device> currentScan) {
+        List<String> events = new ArrayList<>();
 
-        Map<String, Device> anteriorPorIp = indexarPorIp(scanAnterior);
-        Map<String, Device> atualPorIp = indexarPorIp(scanAtual);
+        Map<String, Device> previousForIp = indexForIp(previousScan);
+        Map<String, Device> currentForIp = indexForIp(currentScan);
 
-        for (String ip : atualPorIp.keySet()) {
-            if (!anteriorPorIp.containsKey(ip)) {
-                eventos.add("[NOVO DISPOSITIVO] " + ip + " apareceu na rede");
+        for (String ip : currentForIp.keySet()) {
+            if (!previousForIp.containsKey(ip)) {
+                events.add("[NOVO DISPOSITIVO] " + ip + " apareceu na rede");
             }
         }
 
-        for (String ip : anteriorPorIp.keySet()) {
-            if (!atualPorIp.containsKey(ip)) {
-                eventos.add("[DISPOSITIVO SUMIU] " + ip + " não respondeu mais");
+        for (String ip : previousForIp.keySet()) {
+            if (!currentForIp.containsKey(ip)) {
+                events.add("[DISPOSITIVO SUMIU] " + ip + " não respondeu mais");
             }
         }
 
-        for (String ip : atualPorIp.keySet()) {
-            if (anteriorPorIp.containsKey(ip)) {
-                Device antes = anteriorPorIp.get(ip);
-                Device agora = atualPorIp.get(ip);
-                eventos.addAll(compararPortas(ip, antes, agora));
+        for (String ip : currentForIp.keySet()) {
+            if (previousForIp.containsKey(ip)) {
+                Device before = previousForIp.get(ip);
+                Device now = currentForIp.get(ip);
+                events.addAll(comparePorts(ip, before, now));
             }
         }
 
-        return eventos;
+        return events;
     }
 
-    private List<String> compararPortas(String ip, Device antes, Device agora) {
-        List<String> eventos = new ArrayList<>();
+    private List<String> comparePorts(String ip, Device before, Device now) {
+        List<String> events = new ArrayList<>();
 
-        Set<Integer> portasAntes = new HashSet<>(antes.getPortasAbertas());
-        Set<Integer> portasAgora = new HashSet<>(agora.getPortasAbertas());
+        Set<Integer> portsBefore = new HashSet<>(before.getOpenPorts());
+        Set<Integer> portsNow = new HashSet<>(now.getOpenPorts());
 
-        for (Integer porta : portasAgora) {
-            if (!portasAntes.contains(porta)) {
-                eventos.add("[PORTA ABRIU] " + ip + " abriu a porta " + porta);
+        for (Integer port : portsNow) {
+            if (!portsBefore.contains(port)) {
+                events.add("[PORTA ABRIU] " + ip + " abriu a porta " + port);
             }
         }
 
-        for (Integer porta : portasAntes) {
-            if (!portasAgora.contains(porta)) {
-                eventos.add("[PORTA FECHOU] " + ip + " fechou a porta " + porta);
+        for (Integer port : portsBefore) {
+            if (!portsNow.contains(port)) {
+                events.add("[PORTA FECHOU] " + ip + " fechou a porta " + port);
             }
         }
 
-        return eventos;
+        return events;
     }
 
-    private Map<String, Device> indexarPorIp(List<Device> devices) {
-        Map<String, Device> mapa = new HashMap<>();
+    private Map<String, Device> indexForIp(List<Device> devices) {
+        Map<String, Device> map = new HashMap<>();
         for (Device d : devices) {
-            mapa.put(d.getIp(), d);
+            map.put(d.getIp(), d);
         }
-        return mapa;
+        return map;
     }
 
 }

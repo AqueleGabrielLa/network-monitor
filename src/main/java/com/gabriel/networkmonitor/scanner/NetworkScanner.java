@@ -3,28 +3,32 @@ package com.gabriel.networkmonitor.scanner;
 import com.gabriel.networkmonitor.detector.ChangeDetector;
 import com.gabriel.networkmonitor.model.Device;
 import com.gabriel.networkmonitor.repository.ScanRepository;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.ArrayList;
 import java.util.List;
 
 public class NetworkScanner {
 
+    private static final Logger logger = LoggerFactory.getLogger(NetworkScanner.class);
+
     private final DeviceScanner deviceScanner = new DeviceScanner();
     private final PortScanner portScanner = new PortScanner();
 
-    public List<Device> scanCompleto(String subnet) throws InterruptedException {
-        System.out.println("Etapa 1: procurando dispositivos ativos...");
-        List<String> ipsAtivos = deviceScanner.scanRange(subnet);
+    public List<Device> fullScan(String subnet) throws InterruptedException {
+        logger.info("Etapa 1: procurando dispositivos ativos...");
+        List<String> activeIps = deviceScanner.scanRange(subnet);
 
-        System.out.println("\nEtapa 2: verificando portas de cada dispositivo...");
-        List<Device> dispositivos = new ArrayList<>();
+        logger.info("Etapa 2: verificando portas de cada dispositivo...");
+        List<Device> devices = new ArrayList<>();
 
-        for (String ip : ipsAtivos) {
-            List<Integer> portas = portScanner.scanIp(ip);
-            dispositivos.add(new Device(ip, portas));
+        for (String ip : activeIps) {
+            List<Integer> ports = portScanner.scanIp(ip);
+            devices.add(new Device(ip, ports));
         }
 
-        return dispositivos;
+        return devices;
     }
 
     public static void main(String[] args) throws InterruptedException {
@@ -39,38 +43,38 @@ public class NetworkScanner {
 
         String subnet = args[0];
 
-        List<Device> resultado = scanner.scanCompleto(subnet);
+        List<Device> result = scanner.fullScan(subnet);
 
-        System.out.println("\n=== Resultado final ===");
-        resultado.forEach(System.out::println);
+        logger.info("=== Resultado final ===");
+        result.forEach(device -> logger.info("{}", device));
 
         ScanRepository repository = new ScanRepository();
-        repository.inicializar();
+        repository.initialize();
 
-        List<String> timestampsAntes = repository.buscarUltimosTimestamps();
+        List<String> timestampsBefore = repository.searchLastTimestamps();
 
-        repository.salvarScan(resultado);
-        System.out.println("\nResultado salvo no banco (network-monitor.db)");
+        repository.saveScan(result);
+        logger.info("Resultado salvo no banco (network-monitor.db)");
 
-        if (!timestampsAntes.isEmpty()) {
-            String timestampAnterior = timestampsAntes.get(0);
-            List<Device> scanAnterior = repository.buscarPorTimestamp(timestampAnterior);
+        if (!timestampsBefore.isEmpty()) {
+            String timestampPrevious = timestampsBefore.get(0);
+            List<Device> scanPrevious = repository.searchByTimestamp(timestampPrevious);
 
             ChangeDetector detector = new ChangeDetector();
-            List<String> mudancas = detector.detectarMudancas(scanAnterior, resultado);
+            List<String> changes = detector.detect(scanPrevious, result);
 
-            System.out.println("\n=== Mudanças detectadas desde o último scan ===");
-            if (mudancas.isEmpty()) {
-                System.out.println("Nenhuma mudança. Rede está como estava.");
+            logger.info("=== Mudanças detectadas desde o último scan ===");
+            if (changes.isEmpty()) {
+                logger.info("Nenhuma mudança. Rede está como estava.");
             } else {
-                mudancas.forEach(System.out::println);
+                changes.forEach(change -> logger.info("{}", change));
             }
         } else {
-            System.out.println("\nEste é o primeiro scan salvo, nada para comparar ainda.");
+            logger.info("Este é o primeiro scan salvo, nada para comparar ainda.");
         }
 
-        System.out.println("\n=== Histórico completo ===");
-        repository.listarTodos();
+        logger.info("=== Histórico completo ===");
+        repository.listAll();
     }
 
 }
