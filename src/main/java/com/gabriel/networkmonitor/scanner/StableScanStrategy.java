@@ -13,13 +13,14 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 
-public class FullScanStrategy implements PortScanStrategy {
+public class StableScanStrategy implements PortScanStrategy {
 
-    private static final Logger logger = LoggerFactory.getLogger(FullScanStrategy.class);
+    private static final Logger logger = LoggerFactory.getLogger(StableScanStrategy.class);
 
     private static final int TIMEOUT = 50;
-    private static final int TIMEOUT_TERMINATION = 60;
+    private static final int TIMEOUT_TERMINATION = 45;
     private static final int POOL_SIZE = 100;
+    private static final int MAX_PORT = 32767;
 
     public boolean testPort(String ip, int port) {
         try (Socket socket = new Socket()) {
@@ -35,7 +36,7 @@ public class FullScanStrategy implements PortScanStrategy {
         List<Integer> openPorts = new CopyOnWriteArrayList<>();
         ExecutorService executor = Executors.newFixedThreadPool(POOL_SIZE);
 
-        for (int i = 1; i <= 65535; i++) {
+        for (int i = 1; i <= MAX_PORT; i++) {
             int port = i;
             executor.submit(() -> {
                 if (testPort(ip, port)) {
@@ -43,13 +44,12 @@ public class FullScanStrategy implements PortScanStrategy {
                     logger.info("Porta aberta encontrada em {}: {}", ip, port);
                 }
             });
-
         }
 
         executor.shutdown();
         boolean finished = executor.awaitTermination(TIMEOUT_TERMINATION, TimeUnit.SECONDS);
 
-        if(!finished){
+        if (!finished) {
             logger.warn("Scan de portas não terminou dentro do prazo de " + TIMEOUT_TERMINATION +
                     "s. A lista de portas ativas pode estar incompleta.");
         }

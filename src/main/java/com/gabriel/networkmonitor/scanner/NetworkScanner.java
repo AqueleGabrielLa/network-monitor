@@ -45,9 +45,22 @@ public class NetworkScanner {
         }
 
         String subnet = args[0];
-        boolean full = args.length > 1 && args[1].equals("--full");
+        String mode = args.length > 1 ? args[1] : "--quick";
 
-        PortScanStrategy strategy = full ? new FullScanStrategy() : new QuickScanStrategy();
+        PortScanStrategy strategy = switch (mode) {
+            case "--quick" -> new QuickScanStrategy();
+            case "--full" -> new FullScanStrategy();
+            case "--stable" -> new StableScanStrategy();
+            default -> {
+                System.out.println("Modo desconhecido: " + mode + ". Use --quick, --stable ou --full.");
+                yield null;
+            }
+        };
+
+        if (strategy == null) {
+            return;
+        }
+
         NetworkScanner scanner = new NetworkScanner(strategy);
 
         List<Device> result = scanner.fullScan(subnet);
