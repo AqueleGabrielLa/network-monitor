@@ -1,5 +1,6 @@
 package com.gabriel.networkmonitor.repository;
 
+import com.gabriel.networkmonitor.config.AppConfig;
 import com.gabriel.networkmonitor.model.Device;
 
 import org.slf4j.LoggerFactory;
@@ -16,12 +17,16 @@ public class ScanRepository {
 
     public static final Logger logger = LoggerFactory.getLogger(ScanRepository.class);
 
-    private static final String URL = "jdbc:sqlite:network-monitor.db";
+    private final String url;
+
+    public ScanRepository() {
+        this.url = AppConfig.getString("database.url", "jdbc:sqlite:network-monitor.db");
+    }
 
     public void initialize() {
         String sql = readResource("/db/migration/V001__schema_normalized.sql");
 
-        try (Connection conn = DriverManager.getConnection(URL);
+        try (Connection conn = DriverManager.getConnection(url);
              Statement stmt = conn.createStatement()) {
             stmt.execute(sql);
         } catch (SQLException e) {
@@ -37,7 +42,7 @@ public class ScanRepository {
             """;
         String insertPort = "INSERT INTO scan_port (scan_id, device_id, port) VALUES (?, ?, ?)";
 
-        try (Connection conn = DriverManager.getConnection(URL)) {
+        try (Connection conn = DriverManager.getConnection(url)) {
             conn.setAutoCommit(false);
 
             String now = LocalDateTime.now().toString();
@@ -90,7 +95,7 @@ public class ScanRepository {
             """;
         java.util.Map<String, java.util.List<Integer>> devicePorts = new java.util.HashMap<>();
 
-        try (Connection conn = DriverManager.getConnection(URL);
+        try (Connection conn = DriverManager.getConnection(url);
              PreparedStatement stmt = conn.prepareStatement(sql)) {
 
             stmt.setInt(1, scanId);
@@ -115,7 +120,7 @@ public class ScanRepository {
     public int getLastScanId() {
         String sql = "SELECT id FROM scan ORDER BY id DESC LIMIT 1";
 
-        try (Connection conn = DriverManager.getConnection(URL);
+        try (Connection conn = DriverManager.getConnection(url);
              Statement stmt = conn.createStatement();
              ResultSet rs = stmt.executeQuery(sql)) {
 

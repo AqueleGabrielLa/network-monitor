@@ -1,5 +1,6 @@
 package com.gabriel.networkmonitor.scanner;
 
+import com.gabriel.networkmonitor.config.AppConfig;
 import com.gabriel.networkmonitor.interfaces.PortScanStrategy;
 import com.gabriel.networkmonitor.interfaces.SocketFactory;
 import org.slf4j.Logger;
@@ -13,14 +14,13 @@ public class QuickScanStrategy implements PortScanStrategy {
 
     private static final Logger logger = LoggerFactory.getLogger(QuickScanStrategy.class);
 
-    private static final int[] COMMON_PORTS = {
-            22, 80, 443, 445, 3389, 5353, 8080, 8888, 9100, 8000
-    };
-
     private final SocketFactory socketFactory;
+    private final int[] commonPorts;
 
     public QuickScanStrategy(SocketFactory socketFactory) {
         this.socketFactory = socketFactory;
+        this.commonPorts = AppConfig.getIntArray("scanner.common-ports",
+                new int[]{22, 80, 443, 445, 3389, 5353, 8080, 8888, 9100, 8000});
     }
 
     public boolean testPort(String ip, int port) {
@@ -34,9 +34,9 @@ public class QuickScanStrategy implements PortScanStrategy {
     @Override
     public List<Integer> scanIp(String ip) throws InterruptedException {
         List<Integer> openPorts = new CopyOnWriteArrayList<>();
-        ExecutorService executor = Executors.newFixedThreadPool(COMMON_PORTS.length);
+        ExecutorService executor = Executors.newFixedThreadPool(commonPorts.length);
 
-        for (int port : COMMON_PORTS) {
+        for (int port : commonPorts) {
             executor.submit(() -> {
                 if (testPort(ip, port)) {
                     openPorts.add(port);
