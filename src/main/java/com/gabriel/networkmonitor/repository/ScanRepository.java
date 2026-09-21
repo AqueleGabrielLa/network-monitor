@@ -28,7 +28,12 @@ public class ScanRepository {
 
         try (Connection conn = DriverManager.getConnection(url);
              Statement stmt = conn.createStatement()) {
-            stmt.execute(sql);
+            for (String s : sql.split(";")) {
+                String trimmed = s.trim();
+                if (!trimmed.isEmpty()) {
+                    stmt.execute(trimmed);
+                }
+            }
         } catch (SQLException e) {
             throw new RuntimeException("Erro ao inicializar o banco", e);
         }
@@ -69,11 +74,18 @@ public class ScanRepository {
                     stmtDevice.setString(4, now);
                     stmtDevice.executeUpdate();
 
-                    for (Integer port : device.getOpenPorts()) {
+                    if (device.getOpenPorts().isEmpty()) {
                         stmtPort.setInt(1, scanId);
                         stmtPort.setString(2, mac);
-                        stmtPort.setInt(3, port);
+                        stmtPort.setInt(3, 0);
                         stmtPort.executeUpdate();
+                    } else {
+                        for (Integer port : device.getOpenPorts()) {
+                            stmtPort.setInt(1, scanId);
+                            stmtPort.setString(2, mac);
+                            stmtPort.setInt(3, port);
+                            stmtPort.executeUpdate();
+                        }
                     }
                 }
             }
@@ -104,7 +116,11 @@ public class ScanRepository {
                 while (rs.next()) {
                     String ip = rs.getString("ip");
                     int port = rs.getInt("port");
-                    devicePorts.computeIfAbsent(ip, k -> new java.util.ArrayList<>()).add(port);
+                    if (port != 0) {
+                        devicePorts.computeIfAbsent(ip, k -> new java.util.ArrayList<>()).add(port);
+                    } else {
+                        devicePorts.putIfAbsent(ip, new java.util.ArrayList<>());
+                    }
                 }
             }
 
