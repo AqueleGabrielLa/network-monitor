@@ -1,9 +1,7 @@
 package com.gabriel.networkmonitor.scanner;
 
-import com.gabriel.networkmonitor.detector.ChangeDetector;
 import com.gabriel.networkmonitor.interfaces.PortScanStrategy;
 import com.gabriel.networkmonitor.model.Device;
-import com.gabriel.networkmonitor.repository.ScanRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -14,18 +12,14 @@ public class NetworkScanner {
 
     private static final Logger logger = LoggerFactory.getLogger(NetworkScanner.class);
 
-    private final DeviceScanner deviceScanner = new DeviceScanner();
     private final PortScanStrategy portScanner;
 
     public NetworkScanner(PortScanStrategy strategy) {
         this.portScanner = strategy;
     }
 
-    public List<Device> fullScan(String subnet) throws InterruptedException {
-        logger.info("Etapa 1: procurando dispositivos ativos...");
-        List<String> activeIps = deviceScanner.scanRange(subnet);
-
-        logger.info("Etapa 2: verificando portas de cada dispositivo...");
+    public List<Device> fullScan(List<String> activeIps) throws InterruptedException {
+        logger.info("Verificando portas de cada dispositivo...");
         List<Device> devices = new ArrayList<>();
 
         for (String ip : activeIps) {
@@ -34,67 +28,6 @@ public class NetworkScanner {
         }
 
         return devices;
-    }
-
-    public static void main(String[] args) throws InterruptedException {
-
-        if (args.length < 1) {
-            System.out.println("Uso: java NetworkScanner <subnet>");
-            System.out.println("Exemplo: java NetworkScanner 192.168.1");
-            return;
-        }
-
-        String subnet = args[0];
-        String mode = args.length > 1 ? args[1] : "--quick";
-
-        var socketFactory = new RealSocketFactory(150);
-
-        PortScanStrategy strategy = switch (mode) {
-            case "--quick" -> new QuickScanStrategy(socketFactory);
-            case "--full" -> new FullScanStrategy(socketFactory);
-            case "--stable" -> new StableScanStrategy(socketFactory);
-            default -> {
-                System.out.println("Modo desconhecido: " + mode + ". Use --quick, --stable ou --full.");
-                yield null;
-            }
-        };
-
-        if (strategy == null) {
-            return;
-        }
-
-        NetworkScanner scanner = new NetworkScanner(strategy);
-
-        List<Device> result = scanner.fullScan(subnet);
-
-        logger.info("=== Resultado final ===");
-        result.forEach(device -> logger.info("{}", device));
-
-        ScanRepository repository = new ScanRepository();
-        repository.initialize();
-
-        List<Device> previousScan = null;
-        int lastScanId = repository.getLastScanId();
-        if (lastScanId != -1) {
-            previousScan = repository.searchByScanId(lastScanId);
-        }
-
-        repository.saveScan(result);
-        logger.info("Resultado salvo no banco (network-monitor.db)");
-
-        if (previousScan != null) {
-            ChangeDetector detector = new ChangeDetector();
-            List<String> changes = detector.detect(previousScan, result);
-
-            logger.info("=== Mudanças detectadas desde o último scan ===");
-            if (changes.isEmpty()) {
-                logger.info("Nenhuma mudança. Rede está como estava.");
-            } else {
-                changes.forEach(change -> logger.info("{}", change));
-            }
-        } else {
-            logger.info("Este é o primeiro scan salvo, nada para comparar ainda.");
-        }
     }
 
 }

@@ -28,7 +28,7 @@
                         <configuration>
                             <transformers>
                                 <transformer implementation="org.apache.maven.plugins.shade.resource.ManifestResourceTransformer">
-                                    <mainClass>com.gabriel.networkmonitor.scanner.NetworkScanner</mainClass>
+                                    <mainClass>com.gabriel.networkmonitor.Main</mainClass>
                                 </transformer>
                             </transformers>
                         </configuration>
