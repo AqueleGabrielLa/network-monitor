@@ -5,6 +5,9 @@ import com.gabriel.networkmonitor.model.Device;
 import org.slf4j.LoggerFactory;
 import org.slf4j.Logger;
 
+import java.io.IOException;
+import java.io.InputStream;
+import java.nio.charset.StandardCharsets;
 import java.sql.*;
 import java.time.LocalDateTime;
 import java.util.List;
@@ -16,14 +19,7 @@ public class ScanRepository {
     private static final String URL = "jdbc:sqlite:network-monitor.db";
 
     public void initialize() {
-        String sql = """
-            CREATE TABLE IF NOT EXISTS scan_result (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                ip TEXT NOT NULL,
-                open_ports TEXT,
-                date_hour TEXT NOT NULL
-            )
-            """;
+        String sql = readResource("/db/migration/V001__schema_normalized.sql");
 
         try (Connection conn = DriverManager.getConnection(URL);
              Statement stmt = conn.createStatement()) {
@@ -33,102 +29,113 @@ public class ScanRepository {
         }
     }
 
-    public void saveScan(List<Device> devices) {
-        String sql = "INSERT INTO scan_result (ip, open_ports, date_hour) VALUES (?, ?, ?)";
-        String now = LocalDateTime.now().toString();
+    public int saveScan(List<Device> devices) {
+        String insertScan = "INSERT INTO scan (executed_at, strategy) VALUES (?, ?)";
+        String insertDevice = """
+            INSERT OR IGNORE INTO device (mac, ip, first_seen, last_seen)
+            VALUES (?, ?, ?, ?)
+            """;
+        String insertPort = "INSERT INTO scan_port (scan_id, device_id, port) VALUES (?, ?, ?)";
 
-        try (Connection conn = DriverManager.getConnection(URL);
-             PreparedStatement stmt = conn.prepareStatement(sql)) {
+        try (Connection conn = DriverManager.getConnection(URL)) {
+            conn.setAutoCommit(false);
 
-            for (Device device : devices) {
-                stmt.setString(1, device.getIp());
-                stmt.setString(2, joinPorts(device.getOpenPorts()));
-                stmt.setString(3, now);
+            String now = LocalDateTime.now().toString();
+
+            int scanId;
+            try (PreparedStatement stmt = conn.prepareStatement(insertScan, Statement.RETURN_GENERATED_KEYS)) {
+                stmt.setString(1, now);
+                stmt.setString(2, "quick");
                 stmt.executeUpdate();
+                ResultSet keys = stmt.getGeneratedKeys();
+                keys.next();
+                scanId = keys.getInt(1);
             }
+
+            try (PreparedStatement stmtDevice = conn.prepareStatement(insertDevice);
+                 PreparedStatement stmtPort = conn.prepareStatement(insertPort)) {
+
+                for (Device device : devices) {
+                    String mac = device.getIp();
+
+                    stmtDevice.setString(1, mac);
+                    stmtDevice.setString(2, device.getIp());
+                    stmtDevice.setString(3, now);
+                    stmtDevice.setString(4, now);
+                    stmtDevice.executeUpdate();
+
+                    for (Integer port : device.getOpenPorts()) {
+                        stmtPort.setInt(1, scanId);
+                        stmtPort.setString(2, mac);
+                        stmtPort.setInt(3, port);
+                        stmtPort.executeUpdate();
+                    }
+                }
+            }
+
+            conn.commit();
+            return scanId;
 
         } catch (SQLException e) {
             throw new RuntimeException("Erro ao salvar scan", e);
         }
     }
 
-    public void listAll() {
-        String sql = "SELECT ip, open_ports, date_hour FROM scan_result ORDER BY id DESC";
-
-        try (Connection conn = DriverManager.getConnection(URL);
-             Statement stmt = conn.createStatement();
-             ResultSet rs = stmt.executeQuery(sql)) {
-
-            while (rs.next()) {
-                logger.info("[{}] {} -> {}",
-                        rs.getString("date_hour"),
-                        rs.getString("ip"),
-                        rs.getString("open_ports"));
-            }
-
-        } catch (SQLException e) {
-            throw new RuntimeException("Erro ao listar scans", e);
-        }
-    }
-
-    public List<String> searchLastTimestamps() {
-        String sql = "SELECT DISTINCT date_hour FROM scan_result ORDER BY date_hour DESC LIMIT 2";
-        List<String> timestamps = new java.util.ArrayList<>();
-
-        try (Connection conn = DriverManager.getConnection(URL);
-             Statement stmt = conn.createStatement();
-             ResultSet rs = stmt.executeQuery(sql)) {
-
-            while (rs.next()) {
-                timestamps.add(rs.getString("date_hour"));
-            }
-
-        } catch (SQLException e) {
-            throw new RuntimeException("Erro ao buscar timestamps", e);
-        }
-        return timestamps;
-    }
-
-        public List<Device> searchByTimestamp(String timestamp) {
-        String sql = "SELECT ip, open_ports FROM scan_result WHERE date_hour = ?";
-        List<Device> devices = new java.util.ArrayList<>();
+    public List<Device> searchByScanId(int scanId) {
+        String sql = """
+            SELECT d.ip, sp.port
+            FROM scan_port sp
+            JOIN device d ON d.mac = sp.device_id
+            WHERE sp.scan_id = ?
+            """;
+        java.util.Map<String, java.util.List<Integer>> devicePorts = new java.util.HashMap<>();
 
         try (Connection conn = DriverManager.getConnection(URL);
              PreparedStatement stmt = conn.prepareStatement(sql)) {
 
-            stmt.setString(1, timestamp);
+            stmt.setInt(1, scanId);
 
-            try (ResultSet rs = stmt.executeQuery()){
+            try (ResultSet rs = stmt.executeQuery()) {
                 while (rs.next()) {
                     String ip = rs.getString("ip");
-                    String portsText = rs.getString("open_ports");
-                    List<Integer> ports = parsePorts(portsText);
-                    devices.add(new Device(ip, ports));
+                    int port = rs.getInt("port");
+                    devicePorts.computeIfAbsent(ip, k -> new java.util.ArrayList<>()).add(port);
                 }
             }
 
         } catch (SQLException e) {
-            throw new RuntimeException("Erro ao buscar devices por timestamp", e);
+            throw new RuntimeException("Erro ao buscar devices por scan_id", e);
         }
-        return devices;
+
+        return devicePorts.entrySet().stream()
+                .map(e -> new Device(e.getKey(), e.getValue()))
+                .toList();
     }
 
-    private List<Integer> parsePorts(String text) {
-        List<Integer> ports = new java.util.ArrayList<>();
-        if (text == null || text.isBlank()) return ports;
+    public int getLastScanId() {
+        String sql = "SELECT id FROM scan ORDER BY id DESC LIMIT 1";
 
-        for (String part : text.split(",")) {
-            ports.add(Integer.parseInt(part.trim()));
+        try (Connection conn = DriverManager.getConnection(URL);
+             Statement stmt = conn.createStatement();
+             ResultSet rs = stmt.executeQuery(sql)) {
+
+            if (rs.next()) {
+                return rs.getInt("id");
+            }
+            return -1;
+
+        } catch (SQLException e) {
+            throw new RuntimeException("Erro ao buscar último scan_id", e);
         }
-        return ports;
     }
 
-    private String joinPorts(List<Integer> ports) {
-        List<String> textos = new java.util.ArrayList<>();
-        for (Integer port : ports) {
-            textos.add(String.valueOf(port));
+    private String readResource(String path) {
+        try (InputStream is = getClass().getResourceAsStream(path)) {
+            if (is == null) throw new RuntimeException("Resource not found: " + path);
+            return new String(is.readAllBytes(), StandardCharsets.UTF_8);
+        } catch (IOException e) {
+            throw new RuntimeException("Erro ao ler resource: " + path, e);
         }
-        return String.join(",", textos);
     }
 
 }

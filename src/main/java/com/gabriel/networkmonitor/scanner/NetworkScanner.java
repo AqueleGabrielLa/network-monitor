@@ -71,17 +71,18 @@ public class NetworkScanner {
         ScanRepository repository = new ScanRepository();
         repository.initialize();
 
-        List<String> timestampsBefore = repository.searchLastTimestamps();
+        List<Device> previousScan = null;
+        int lastScanId = repository.getLastScanId();
+        if (lastScanId != -1) {
+            previousScan = repository.searchByScanId(lastScanId);
+        }
 
         repository.saveScan(result);
         logger.info("Resultado salvo no banco (network-monitor.db)");
 
-        if (!timestampsBefore.isEmpty()) {
-            String timestampPrevious = timestampsBefore.get(0);
-            List<Device> scanPrevious = repository.searchByTimestamp(timestampPrevious);
-
+        if (previousScan != null) {
             ChangeDetector detector = new ChangeDetector();
-            List<String> changes = detector.detect(scanPrevious, result);
+            List<String> changes = detector.detect(previousScan, result);
 
             logger.info("=== Mudanças detectadas desde o último scan ===");
             if (changes.isEmpty()) {
@@ -92,9 +93,6 @@ public class NetworkScanner {
         } else {
             logger.info("Este é o primeiro scan salvo, nada para comparar ainda.");
         }
-
-        logger.info("=== Histórico completo ===");
-        repository.listAll();
     }
 
 }
