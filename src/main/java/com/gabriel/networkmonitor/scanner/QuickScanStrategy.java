@@ -1,10 +1,10 @@
 package com.gabriel.networkmonitor.scanner;
 
 import com.gabriel.networkmonitor.interfaces.PortScanStrategy;
+import com.gabriel.networkmonitor.interfaces.SocketFactory;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.net.InetSocketAddress;
 import java.net.Socket;
 import java.util.*;
 import java.util.concurrent.*;
@@ -13,15 +13,18 @@ public class QuickScanStrategy implements PortScanStrategy {
 
     private static final Logger logger = LoggerFactory.getLogger(QuickScanStrategy.class);
 
-    private static final int TIMEOUT = 150;
-
     private static final int[] COMMON_PORTS = {
             22, 80, 443, 445, 3389, 5353, 8080, 8888, 9100, 8000
     };
 
+    private final SocketFactory socketFactory;
+
+    public QuickScanStrategy(SocketFactory socketFactory) {
+        this.socketFactory = socketFactory;
+    }
+
     public boolean testPort(String ip, int port) {
-        try (Socket socket = new Socket()) {
-            socket.connect(new InetSocketAddress(ip, port), TIMEOUT);
+        try (Socket socket = socketFactory.create(ip, port)) {
             return true;
         } catch (Exception e) {
             return false;

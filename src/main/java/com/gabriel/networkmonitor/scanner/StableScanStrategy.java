@@ -1,11 +1,10 @@
 package com.gabriel.networkmonitor.scanner;
 
 import com.gabriel.networkmonitor.interfaces.PortScanStrategy;
+import com.gabriel.networkmonitor.interfaces.SocketFactory;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.net.InetSocketAddress;
-import java.net.Socket;
 import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.CopyOnWriteArrayList;
@@ -17,14 +16,18 @@ public class StableScanStrategy implements PortScanStrategy {
 
     private static final Logger logger = LoggerFactory.getLogger(StableScanStrategy.class);
 
-    private static final int TIMEOUT = 50;
     private static final int TIMEOUT_TERMINATION = 45;
     private static final int POOL_SIZE = 100;
     private static final int MAX_PORT = 32767;
 
+    private final SocketFactory socketFactory;
+
+    public StableScanStrategy(SocketFactory socketFactory) {
+        this.socketFactory = socketFactory;
+    }
+
     public boolean testPort(String ip, int port) {
-        try (Socket socket = new Socket()) {
-            socket.connect(new InetSocketAddress(ip, port), TIMEOUT);
+        try (var socket = socketFactory.create(ip, port)) {
             return true;
         } catch (Exception e) {
             return false;

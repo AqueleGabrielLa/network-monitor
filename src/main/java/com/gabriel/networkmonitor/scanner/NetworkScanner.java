@@ -47,10 +47,12 @@ public class NetworkScanner {
         String subnet = args[0];
         String mode = args.length > 1 ? args[1] : "--quick";
 
+        var socketFactory = new RealSocketFactory(150);
+
         PortScanStrategy strategy = switch (mode) {
-            case "--quick" -> new QuickScanStrategy();
-            case "--full" -> new FullScanStrategy();
-            case "--stable" -> new StableScanStrategy();
+            case "--quick" -> new QuickScanStrategy(socketFactory);
+            case "--full" -> new FullScanStrategy(socketFactory);
+            case "--stable" -> new StableScanStrategy(socketFactory);
             default -> {
                 System.out.println("Modo desconhecido: " + mode + ". Use --quick, --stable ou --full.");
                 yield null;
