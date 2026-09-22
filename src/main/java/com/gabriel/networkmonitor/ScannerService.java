@@ -45,6 +45,9 @@ public class ScannerService {
         repository.saveScan(result);
         logger.info("Resultado salvo no banco");
 
+        logger.info("=== Resultado final ===");
+        result.forEach(device -> logger.info("{}", describe(device)));
+
         if (previousScan != null) {
             List<String> changes = detector.detect(previousScan, result);
 
@@ -59,6 +62,21 @@ public class ScannerService {
             logger.info("Este é o primeiro scan salvo, nada para comparar ainda.");
             return List.of();
         }
+    }
+
+    static String describe(Device device) {
+        StringBuilder sb = new StringBuilder();
+        sb.append(device.getHostname() != null ? "[" + device.getHostname() + "] " : "");
+        sb.append(device.getVendor() != null ? device.getVendor() + " " : "");
+        sb.append("(").append(device.getMac()).append(") - ").append(device.getIp()).append("\n");
+        if (device.getOpenPorts().isEmpty()) {
+            sb.append("  nenhuma porta comum aberta");
+        } else {
+            for (Integer port : device.getOpenPorts()) {
+                sb.append("  • ").append(port).append("/tcp\n");
+            }
+        }
+        return sb.toString().trim();
     }
 
     public static PortScanStrategy createStrategy(String mode) {

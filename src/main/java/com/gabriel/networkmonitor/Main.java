@@ -11,7 +11,16 @@ public class Main {
     private static final Logger logger = LoggerFactory.getLogger(Main.class);
 
     public static void main(String[] args) throws InterruptedException {
-        String mode = args.length > 1 ? args[1] : "--quick";
+        String subnet = null;
+        String mode = "--quick";
+
+        for (String arg : args) {
+            if (arg.startsWith("--")) {
+                mode = arg;
+            } else if (subnet == null) {
+                subnet = arg;
+            }
+        }
 
         PortScanStrategy strategy = ScannerService.createStrategy(mode);
         if (strategy == null) {
@@ -19,7 +28,7 @@ public class Main {
             return;
         }
 
-        String subnet = resolveSubnet(args);
+        subnet = resolveSubnet(subnet);
         if (subnet == null) {
             System.out.println("Nao foi possivel determinar a subnet da rede. "
                     + "Informe manualmente como argumento (ex: 192.168.0).");
@@ -32,9 +41,9 @@ public class Main {
         service.executeFullCycle(subnet);
     }
 
-    static String resolveSubnet(String[] args) {
-        if (args.length >= 1) {
-            return args[0];
+    static String resolveSubnet(String provided) {
+        if (provided != null && !provided.isBlank()) {
+            return provided;
         }
 
         String autoDetected = new SubnetDetector().detect();
@@ -42,6 +51,7 @@ public class Main {
             return autoDetected;
         }
 
-        return AppConfig.getString("scanner.subnet", null);
+        String configured = AppConfig.getString("scanner.subnet", null);
+        return configured != null && !configured.isBlank() ? configured : null;
     }
 }
