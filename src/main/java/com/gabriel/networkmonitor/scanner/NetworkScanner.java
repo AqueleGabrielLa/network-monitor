@@ -18,13 +18,13 @@ public class NetworkScanner {
         this.portScanner = strategy;
     }
 
-    public List<Device> fullScan(List<String> activeIps) throws InterruptedException {
+    public List<Device> fullScan(List<Device> activeDevices) throws InterruptedException {
         logger.info("Verificando portas de cada dispositivo...");
         List<Device> devices = new ArrayList<>();
 
-        for (String ip : activeIps) {
-            List<Integer> ports = portScanner.scanIp(ip);
-            devices.add(new Device(ip, ports));
+        for (Device device : activeDevices) {
+            List<Integer> ports = portScanner.scanIp(device.getIp());
+            devices.add(device.withPorts(ports));
         }
 
         return devices;

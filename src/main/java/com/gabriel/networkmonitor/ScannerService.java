@@ -36,11 +36,11 @@ public class ScannerService {
         }
 
         logger.info("Etapa 1: procurando dispositivos ativos...");
-        List<String> activeIps = deviceScanner.scanRange(subnet);
+        List<Device> activeDevices = deviceScanner.scanRange(subnet);
 
         logger.info("Etapa 2: verificando portas de cada dispositivo...");
         var networkScanner = new NetworkScanner(portScanner);
-        List<Device> result = networkScanner.fullScan(activeIps);
+        List<Device> result = networkScanner.fullScan(activeDevices);
 
         repository.saveScan(result);
         logger.info("Resultado salvo no banco");

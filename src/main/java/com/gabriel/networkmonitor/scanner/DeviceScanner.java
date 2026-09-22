@@ -1,44 +1,66 @@
 package com.gabriel.networkmonitor.scanner;
 
-import com.gabriel.networkmonitor.config.AppConfig;
+import com.gabriel.networkmonitor.model.ArpEntry;
+import com.gabriel.networkmonitor.model.Device;
+import com.gabriel.networkmonitor.network.OuiLookup;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.net.InetAddress;
+import java.util.ArrayList;
 import java.util.List;
-import java.util.concurrent.*;
 
 public class DeviceScanner {
 
     private static final Logger logger = LoggerFactory.getLogger(DeviceScanner.class);
 
-    private final int timeout;
+    private final ArpScanner arpScanner;
+    private final OuiLookup ouiLookup;
 
     public DeviceScanner() {
-        this.timeout = AppConfig.getInt("scanner.timeout", 200);
+        this.arpScanner = new ArpScanner();
+        this.ouiLookup = new OuiLookup();
     }
 
-    public List<String> scanRange(String subnet) throws InterruptedException {
-        List<String> actives = new CopyOnWriteArrayList<>();
+    public List<Device> scanRange(String subnet) {
+        List<Device> devices = new ArrayList<>();
 
-        try (ExecutorService executor = Executors.newVirtualThreadPerTaskExecutor()) {
-            for (int i = 1; i <= 254; i++) {
-                String ip = subnet + "." + i;
-                executor.submit(() -> {
-                    try {
-                        InetAddress address = InetAddress.getByName(ip);
-                        if (address.isReachable(timeout)) {
-                            actives.add(ip);
-                            logger.info("Dispositivo ativo encontrado: {}", ip);
-                        }
-                    } catch (Exception e) {
-                        logger.debug("Falha ao testar {}: {}", ip, e.getMessage());
-                    }
-                });
-            }
+        List<ArpEntry> entries;
+        try {
+            entries = arpScanner.scan();
+        } catch (Exception e) {
+            logger.error("Falha ao ler o cache ARP: {}", e.getMessage());
+            return devices;
         }
 
-        return actives;
+        for (ArpEntry entry : entries) {
+            String ip = entry.ip();
+            if (subnet != null && !subnet.isBlank() && !ip.startsWith(subnet + ".")) {
+                continue;
+            }
+
+            String hostname = resolveHostname(ip);
+            String vendor = ouiLookup.lookup(entry.mac());
+
+            devices.add(new Device(entry.mac(), ip, hostname, vendor, List.of()));
+            logger.info("Dispositivo ativo encontrado: {} [{}]{}", ip, entry.mac(),
+                    vendor != null ? " - " + vendor : "");
+        }
+
+        return devices;
+    }
+
+    private String resolveHostname(String ip) {
+        try {
+            String hostname = InetAddress.getByName(ip).getHostName();
+            if (hostname == null || hostname.isBlank() || hostname.equals(ip)) {
+                return null;
+            }
+            return hostname;
+        } catch (Exception e) {
+            logger.debug("Falha ao resolver hostname de {}: {}", ip, e.getMessage());
+            return null;
+        }
     }
 
 }
