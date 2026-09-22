@@ -1,5 +1,6 @@
 package com.gabriel.networkmonitor.scanner;
 
+import com.gabriel.networkmonitor.config.AppConfig;
 import com.gabriel.networkmonitor.interfaces.PortScanStrategy;
 import com.gabriel.networkmonitor.interfaces.SocketFactory;
 import org.slf4j.Logger;
@@ -16,14 +17,15 @@ public class StableScanStrategy implements PortScanStrategy {
 
     private static final Logger logger = LoggerFactory.getLogger(StableScanStrategy.class);
 
-    private static final int TIMEOUT_TERMINATION = 45;
     private static final int POOL_SIZE = 100;
     private static final int MAX_PORT = 32767;
 
     private final SocketFactory socketFactory;
+    private final int timeoutTermination;
 
     public StableScanStrategy(SocketFactory socketFactory) {
         this.socketFactory = socketFactory;
+        this.timeoutTermination = AppConfig.getInt("scanner.stable-wait", 90);
     }
 
     public boolean testPort(String ip, int port) {
@@ -50,10 +52,10 @@ public class StableScanStrategy implements PortScanStrategy {
         }
 
         executor.shutdown();
-        boolean finished = executor.awaitTermination(TIMEOUT_TERMINATION, TimeUnit.SECONDS);
+        boolean finished = executor.awaitTermination(timeoutTermination, TimeUnit.SECONDS);
 
         if (!finished) {
-            logger.warn("Scan de portas não terminou dentro do prazo de " + TIMEOUT_TERMINATION +
+            logger.warn("Scan de portas não terminou dentro do prazo de " + timeoutTermination +
                     "s. A lista de portas ativas pode estar incompleta.");
         }
 

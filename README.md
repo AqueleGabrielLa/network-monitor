@@ -84,7 +84,20 @@ java -jar target/network-monitor-1.0-SNAPSHOT.jar --stable
 java -jar target/network-monitor-1.0-SNAPSHOT.jar 192.168.1 --full
 ```
 
-A subnet e o modo podem ser informados em qualquer ordem.
+## Configuração
+
+Os valores padrão ficam no arquivo `src/main/resources/application.properties`:
+
+| Chave | Padrão | O que controla |
+|---|---|---|
+| `scanner.subnet` | `192.168.1` | subnet usada quando não é auto-detectada |
+| `scanner.timeout` | `200` | timeout (ms) por porta testada |
+| `scanner.common-ports` | `22,80,443,8000,8080,8443` | portas do modo `--quick` |
+| `scanner.stable-wait` | `90` | tempo máximo de espera (s) do `--stable` |
+| `scanner.full-wait` | `180` | tempo máximo de espera (s) do `--full` |
+| `database.url` | `jdbc:sqlite:network-monitor.db` | caminho do banco |
+
+O subnet e o modo podem ser informados em qualquer ordem.
 
 O banco `network-monitor.db` é criado automaticamente na raiz do projeto na primeira execução.
 
