@@ -11,11 +11,26 @@ import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
 import java.sql.*;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 
 public class ScanRepository {
 
     public static final Logger logger = LoggerFactory.getLogger(ScanRepository.class);
+
+    private static final class DeviceAccumulator {
+        final String mac;
+        String ip;
+        String hostname;
+        String vendor;
+        final List<Integer> ports = new ArrayList<>();
+
+        DeviceAccumulator(String mac) {
+            this.mac = mac;
+        }
+    }
 
     private final String url;
 
@@ -41,9 +56,14 @@ public class ScanRepository {
 
     public int saveScan(List<Device> devices) {
         String insertScan = "INSERT INTO scan (executed_at, strategy) VALUES (?, ?)";
-        String insertDevice = """
-            INSERT OR IGNORE INTO device (mac, ip, first_seen, last_seen)
-            VALUES (?, ?, ?, ?)
+        String upsertDevice = """
+            INSERT INTO device (mac, ip, hostname, vendor, first_seen, last_seen)
+            VALUES (?, ?, ?, ?, ?, ?)
+            ON CONFLICT(mac) DO UPDATE SET
+                ip = excluded.ip,
+                hostname = excluded.hostname,
+                vendor = excluded.vendor,
+                last_seen = excluded.last_seen
             """;
         String insertPort = "INSERT INTO scan_port (scan_id, device_id, port) VALUES (?, ?, ?)";
 
@@ -62,16 +82,18 @@ public class ScanRepository {
                 scanId = keys.getInt(1);
             }
 
-            try (PreparedStatement stmtDevice = conn.prepareStatement(insertDevice);
+            try (PreparedStatement stmtDevice = conn.prepareStatement(upsertDevice);
                  PreparedStatement stmtPort = conn.prepareStatement(insertPort)) {
 
                 for (Device device : devices) {
-                    String mac = device.getIp();
+                    String mac = device.getMac();
 
                     stmtDevice.setString(1, mac);
                     stmtDevice.setString(2, device.getIp());
-                    stmtDevice.setString(3, now);
-                    stmtDevice.setString(4, now);
+                    stmtDevice.setString(3, device.getHostname());
+                    stmtDevice.setString(4, device.getVendor());
+                    stmtDevice.setString(5, now);
+                    stmtDevice.setString(6, now);
                     stmtDevice.executeUpdate();
 
                     if (device.getOpenPorts().isEmpty()) {
@@ -100,12 +122,12 @@ public class ScanRepository {
 
     public List<Device> searchByScanId(int scanId) {
         String sql = """
-            SELECT d.ip, sp.port
+            SELECT d.mac, d.ip, d.hostname, d.vendor, sp.port
             FROM scan_port sp
             JOIN device d ON d.mac = sp.device_id
             WHERE sp.scan_id = ?
             """;
-        java.util.Map<String, java.util.List<Integer>> devicePorts = new java.util.HashMap<>();
+        Map<String, DeviceAccumulator> devices = new LinkedHashMap<>();
 
         try (Connection conn = DriverManager.getConnection(url);
              PreparedStatement stmt = conn.prepareStatement(sql)) {
@@ -114,12 +136,14 @@ public class ScanRepository {
 
             try (ResultSet rs = stmt.executeQuery()) {
                 while (rs.next()) {
-                    String ip = rs.getString("ip");
+                    String mac = rs.getString("mac");
+                    DeviceAccumulator acc = devices.computeIfAbsent(mac, DeviceAccumulator::new);
+                    acc.ip = rs.getString("ip");
+                    acc.hostname = rs.getString("hostname");
+                    acc.vendor = rs.getString("vendor");
                     int port = rs.getInt("port");
                     if (port != 0) {
-                        devicePorts.computeIfAbsent(ip, k -> new java.util.ArrayList<>()).add(port);
-                    } else {
-                        devicePorts.putIfAbsent(ip, new java.util.ArrayList<>());
+                        acc.ports.add(port);
                     }
                 }
             }
@@ -128,8 +152,8 @@ public class ScanRepository {
             throw new RuntimeException("Erro ao buscar devices por scan_id", e);
         }
 
-        return devicePorts.entrySet().stream()
-                .map(e -> new Device(e.getKey(), e.getValue()))
+        return devices.values().stream()
+                .map(a -> new Device(a.mac, a.ip, a.hostname, a.vendor, a.ports))
                 .toList();
     }
 
