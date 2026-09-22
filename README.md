@@ -12,18 +12,18 @@ Monitor de rede doméstica desenvolvido em Java, focado em descoberta de disposi
 ## Exemplo de saída
 
 ```
-15:37:09 [INFO] scanner.DeviceScanner - Dispositivo ativo encontrado: 192.168.0.10 [aa:bb:cc:11:22:33]
-15:37:09 [INFO] scanner.DeviceScanner - Dispositivo ativo encontrado: 192.168.0.1 [00:11:32:aa:bb:cc] - TP-Link Systems Inc
+15:37:09 [INFO] scanner.DeviceScanner - Dispositivo ativo encontrado: 192.168.1.10 [aa:bb:cc:11:22:33]
+15:37:09 [INFO] scanner.DeviceScanner - Dispositivo ativo encontrado: 192.168.1.1 [00:11:32:aa:bb:cc] - Acme Networks
 
 === Resultado final ===
-[home-gateway] TP-Link Systems Inc (00:11:32:aa:bb:cc) - 192.168.0.1
+[home-router] Acme Networks (00:11:32:aa:bb:cc) - 192.168.1.1
   • 22/tcp
   • 80/tcp
   • 443/tcp
 
 === Mudanças detectadas desde o último scan ===
-[PORTA ABRIU] aa:bb:cc:11:22:33 [192.168.0.10] abriu a porta 3000
-[IP MUDOU] 192.168.0.10 -> 192.168.0.15 (MAC aa:bb:cc:11:22:33)
+[PORTA ABRIU] aa:bb:cc:11:22:33 [192.168.1.10] abriu a porta 3000
+[IP MUDOU] 192.168.1.10 -> 192.168.1.15 (MAC aa:bb:cc:11:22:33)
 ```
 
 ## Arquitetura
@@ -62,7 +62,7 @@ cd network-monitor
 mvn clean package
 ```
 
-O subnet da rede é opcional: se não for passado, é detectado automaticamente a partir do IP local (ex: IP `192.168.0.15` → subnet `192.168.0`). Para descobrir o prefixo da sua rede manualmente, rode `ipconfig` (Windows) ou `ip a` (Linux/Mac).
+O subnet da rede é opcional: se não for passado, é detectado automaticamente a partir do IP local (ex: IP `192.168.1.15` → subnet `192.168.1`). Para descobrir o prefixo da sua rede manualmente, rode `ipconfig` (Windows) ou `ip a` (Linux/Mac).
 
 O modo de varredura de portas é selecionado via flag:
 - Ausente ou `--quick` — varredura rápida (conjunto fixo de portas comuns), modo padrão
@@ -70,7 +70,7 @@ O modo de varredura de portas é selecionado via flag:
 - `--full` — varredura completa, todas as portas de 1 a 65535
 
 **Rodando pela IDE (IntelliJ):**
-Em `Run → Edit Configurations`, adicione opcionalmente a subnet (e/ou `--stable` / `--full`) no campo "Program arguments" (ex: `192.168.0` ou `--full`) e execute a classe `Main`.
+Em `Run → Edit Configurations`, adicione opcionalmente a subnet (e/ou `--stable` / `--full`) no campo "Program arguments" (ex: `192.168.1` ou `--full`) e execute a classe `Main`.
 
 **Rodando via terminal:**
 ```bash
@@ -81,7 +81,7 @@ java -jar target/network-monitor-1.0-SNAPSHOT.jar
 java -jar target/network-monitor-1.0-SNAPSHOT.jar --stable
 
 # modo completo com subnet explícita
-java -jar target/network-monitor-1.0-SNAPSHOT.jar 192.168.0 --full
+java -jar target/network-monitor-1.0-SNAPSHOT.jar 192.168.1 --full
 ```
 
 A subnet e o modo podem ser informados em qualquer ordem.
