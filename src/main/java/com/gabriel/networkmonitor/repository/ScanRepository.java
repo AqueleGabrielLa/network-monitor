@@ -2,6 +2,7 @@ package com.gabriel.networkmonitor.repository;
 
 import com.gabriel.networkmonitor.config.AppConfig;
 import com.gabriel.networkmonitor.model.Device;
+import com.gabriel.networkmonitor.model.PortInfo;
 
 import org.slf4j.LoggerFactory;
 import org.slf4j.Logger;
@@ -25,7 +26,8 @@ public class ScanRepository {
         String ip;
         String hostname;
         String vendor;
-        final List<Integer> ports = new ArrayList<>();
+        String osGuess;
+        final List<PortInfo> portInfos = new ArrayList<>();
 
         DeviceAccumulator(String mac) {
             this.mac = mac;
@@ -39,14 +41,27 @@ public class ScanRepository {
     }
 
     public void initialize() {
-        String sql = readResource("/db/migration/V001__schema_normalized.sql");
+        runMigration("/db/migration/V001__schema_normalized.sql");
+        runMigration("/db/migration/V002__service_fingerprint.sql");
+    }
+
+    private void runMigration(String path) {
+        String sql = readResource(path);
 
         try (Connection conn = DriverManager.getConnection(url);
              Statement stmt = conn.createStatement()) {
             for (String s : sql.split(";")) {
                 String trimmed = s.trim();
-                if (!trimmed.isEmpty()) {
+                if (trimmed.isEmpty()) {
+                    continue;
+                }
+                try {
                     stmt.execute(trimmed);
+                } catch (SQLException e) {
+                    if (e.getMessage() != null && e.getMessage().contains("duplicate column name")) {
+                        continue;
+                    }
+                    throw e;
                 }
             }
         } catch (SQLException e) {
@@ -57,15 +72,16 @@ public class ScanRepository {
     public int saveScan(List<Device> devices) {
         String insertScan = "INSERT INTO scan (executed_at, strategy) VALUES (?, ?)";
         String upsertDevice = """
-            INSERT INTO device (mac, ip, hostname, vendor, first_seen, last_seen)
-            VALUES (?, ?, ?, ?, ?, ?)
+            INSERT INTO device (mac, ip, hostname, vendor, os_guess, first_seen, last_seen)
+            VALUES (?, ?, ?, ?, ?, ?, ?)
             ON CONFLICT(mac) DO UPDATE SET
                 ip = excluded.ip,
                 hostname = excluded.hostname,
                 vendor = excluded.vendor,
+                os_guess = excluded.os_guess,
                 last_seen = excluded.last_seen
             """;
-        String insertPort = "INSERT INTO scan_port (scan_id, device_id, port) VALUES (?, ?, ?)";
+        String insertPort = "INSERT INTO scan_port (scan_id, device_id, port, banner, service) VALUES (?, ?, ?, ?, ?)";
 
         try (Connection conn = DriverManager.getConnection(url)) {
             conn.setAutoCommit(false);
@@ -92,20 +108,25 @@ public class ScanRepository {
                     stmtDevice.setString(2, device.getIp());
                     stmtDevice.setString(3, device.getHostname());
                     stmtDevice.setString(4, device.getVendor());
-                    stmtDevice.setString(5, now);
+                    stmtDevice.setString(5, device.getOsGuess());
                     stmtDevice.setString(6, now);
+                    stmtDevice.setString(7, now);
                     stmtDevice.executeUpdate();
 
-                    if (device.getOpenPorts().isEmpty()) {
+                    if (device.getPortInfos().isEmpty()) {
                         stmtPort.setInt(1, scanId);
                         stmtPort.setString(2, mac);
                         stmtPort.setInt(3, 0);
+                        stmtPort.setString(4, null);
+                        stmtPort.setString(5, null);
                         stmtPort.executeUpdate();
                     } else {
-                        for (Integer port : device.getOpenPorts()) {
+                        for (PortInfo info : device.getPortInfos()) {
                             stmtPort.setInt(1, scanId);
                             stmtPort.setString(2, mac);
-                            stmtPort.setInt(3, port);
+                            stmtPort.setInt(3, info.port());
+                            stmtPort.setString(4, info.banner());
+                            stmtPort.setString(5, info.service());
                             stmtPort.executeUpdate();
                         }
                     }
@@ -122,7 +143,8 @@ public class ScanRepository {
 
     public List<Device> searchByScanId(int scanId) {
         String sql = """
-            SELECT d.mac, d.ip, d.hostname, d.vendor, sp.port
+            SELECT d.mac, d.ip, d.hostname, d.vendor, d.os_guess,
+                   sp.port, sp.banner, sp.service
             FROM scan_port sp
             JOIN device d ON d.mac = sp.device_id
             WHERE sp.scan_id = ?
@@ -141,9 +163,13 @@ public class ScanRepository {
                     acc.ip = rs.getString("ip");
                     acc.hostname = rs.getString("hostname");
                     acc.vendor = rs.getString("vendor");
+                    acc.osGuess = rs.getString("os_guess");
                     int port = rs.getInt("port");
                     if (port != 0) {
-                        acc.ports.add(port);
+                        acc.portInfos.add(new PortInfo(
+                                port,
+                                rs.getString("service"),
+                                rs.getString("banner")));
                     }
                 }
             }
@@ -153,7 +179,7 @@ public class ScanRepository {
         }
 
         return devices.values().stream()
-                .map(a -> new Device(a.mac, a.ip, a.hostname, a.vendor, a.ports))
+                .map(a -> new Device(a.mac, a.ip, a.hostname, a.vendor, a.portInfos, a.osGuess))
                 .toList();
     }
 
