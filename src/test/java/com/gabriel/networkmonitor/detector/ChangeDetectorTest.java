@@ -1,6 +1,7 @@
 package com.gabriel.networkmonitor.detector;
 
 import com.gabriel.networkmonitor.model.Device;
+import com.gabriel.networkmonitor.model.PortInfo;
 import org.junit.jupiter.api.Test;
 
 import java.util.Collections;
@@ -103,5 +104,32 @@ class ChangeDetectorTest {
         assertTrue(changes.get(0).contains("IP MUDOU"));
         assertTrue(changes.get(0).contains("192.168.0.1"));
         assertTrue(changes.get(0).contains("192.168.0.77"));
+    }
+
+    @Test
+    void shouldDetectServiceChange() {
+        Device previous = new Device("aa:bb:cc:00:00:01", "192.168.0.1", null, null,
+                List.of(new PortInfo(80, "http Apache/2.4.0", null)), null);
+        Device current = new Device("aa:bb:cc:00:00:01", "192.168.0.1", null, null,
+                List.of(new PortInfo(80, "http nginx/1.25.3", null)), null);
+
+        List<String> changes = detector.detect(List.of(previous), List.of(current));
+
+        assertEquals(1, changes.size());
+        assertTrue(changes.get(0).contains("SERVIÇO MUDOU"));
+        assertTrue(changes.get(0).contains("Apache/2.4.0"));
+        assertTrue(changes.get(0).contains("nginx/1.25.3"));
+    }
+
+    @Test
+    void shouldNotDetectServiceChangeWhenServiceUnchanged() {
+        Device previous = new Device("aa:bb:cc:00:00:01", "192.168.0.1", null, null,
+                List.of(new PortInfo(80, "http nginx/1.25.3", null)), null);
+        Device current = new Device("aa:bb:cc:00:00:01", "192.168.0.1", null, null,
+                List.of(new PortInfo(80, "http nginx/1.25.3", null)), null);
+
+        List<String> changes = detector.detect(List.of(previous), List.of(current));
+
+        assertTrue(changes.isEmpty());
     }
 }

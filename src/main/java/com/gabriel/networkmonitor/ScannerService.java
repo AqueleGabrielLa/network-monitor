@@ -1,8 +1,12 @@
 package com.gabriel.networkmonitor;
 
+import com.gabriel.networkmonitor.banner.BannerGrabber;
+import com.gabriel.networkmonitor.banner.ServiceIdentifier;
+import com.gabriel.networkmonitor.config.AppConfig;
 import com.gabriel.networkmonitor.detector.ChangeDetector;
 import com.gabriel.networkmonitor.interfaces.PortScanStrategy;
 import com.gabriel.networkmonitor.model.Device;
+import com.gabriel.networkmonitor.model.PortInfo;
 import com.gabriel.networkmonitor.repository.ScanRepository;
 import com.gabriel.networkmonitor.scanner.*;
 import org.slf4j.Logger;
@@ -18,12 +22,17 @@ public class ScannerService {
     private final PortScanStrategy portScanner;
     private final ScanRepository repository;
     private final ChangeDetector detector;
+    private final BannerGrabber bannerGrabber;
+    private final ServiceIdentifier serviceIdentifier;
 
     public ScannerService(PortScanStrategy portScanner) {
         this.deviceScanner = new DeviceScanner();
         this.portScanner = portScanner;
         this.repository = new ScanRepository();
         this.detector = new ChangeDetector();
+        int timeout = AppConfig.getInt("scanner.timeout", 150);
+        this.bannerGrabber = new BannerGrabber(new RealSocketFactory(timeout));
+        this.serviceIdentifier = new ServiceIdentifier();
     }
 
     public List<String> executeFullCycle(String subnet) throws InterruptedException {
@@ -40,7 +49,10 @@ public class ScannerService {
 
         logger.info("Etapa 2: verificando portas de cada dispositivo...");
         var networkScanner = new NetworkScanner(portScanner);
-        List<Device> result = networkScanner.fullScan(activeDevices);
+        List<Device> scanned = networkScanner.fullScan(activeDevices);
+
+        logger.info("Etapa 3: coletando banners e identificando serviços...");
+        List<Device> result = enrichWithFingerprints(scanned);
 
         repository.saveScan(result);
         logger.info("Resultado salvo no banco");
@@ -64,23 +76,46 @@ public class ScannerService {
         }
     }
 
+    private List<Device> enrichWithFingerprints(List<Device> devices) {
+        return devices.stream()
+                .map(device -> device.withPortInfos(
+                        device.getPortInfos().stream()
+                                .map(info -> enrichPort(device.getIp(), info))
+                                .toList()))
+                .toList();
+    }
+
+    private PortInfo enrichPort(String ip, PortInfo info) {
+        String banner = bannerGrabber.grab(ip, info.port());
+        String service = serviceIdentifier.identify(info.port(), banner).orElse(null);
+        return new PortInfo(info.port(), service, banner);
+    }
+
     static String describe(Device device) {
         StringBuilder sb = new StringBuilder();
         sb.append(device.getHostname() != null ? "[" + device.getHostname() + "] " : "");
         sb.append(device.getVendor() != null ? device.getVendor() + " " : "");
-        sb.append("(").append(device.getMac()).append(") - ").append(device.getIp()).append("\n");
-        if (device.getOpenPorts().isEmpty()) {
+        sb.append("(").append(device.getMac()).append(") - ").append(device.getIp());
+        if (device.getOsGuess() != null) {
+            sb.append(" [").append(device.getOsGuess()).append("]");
+        }
+        sb.append("\n");
+        if (device.getPortInfos().isEmpty()) {
             sb.append("  nenhuma porta comum aberta");
         } else {
-            for (Integer port : device.getOpenPorts()) {
-                sb.append("  • ").append(port).append("/tcp\n");
+            for (PortInfo info : device.getPortInfos()) {
+                sb.append("  • ").append(info.port()).append("/tcp");
+                if (info.service() != null) {
+                    sb.append("   ").append(info.service());
+                }
+                sb.append("\n");
             }
         }
         return sb.toString().trim();
     }
 
     public static PortScanStrategy createStrategy(String mode) {
-        int timeout = com.gabriel.networkmonitor.config.AppConfig.getInt("scanner.timeout", 150);
+        int timeout = AppConfig.getInt("scanner.timeout", 150);
         var socketFactory = new RealSocketFactory(timeout);
 
         return switch (mode) {

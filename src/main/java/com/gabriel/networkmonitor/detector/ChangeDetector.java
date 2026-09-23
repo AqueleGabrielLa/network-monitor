@@ -35,6 +35,7 @@ public class ChangeDetector {
                 }
 
                 events.addAll(comparePorts(before, now));
+                events.addAll(compareServices(before, now));
             }
         }
 
@@ -61,6 +62,36 @@ public class ChangeDetector {
         }
 
         return events;
+    }
+
+    private List<String> compareServices(Device before, Device now) {
+        List<String> events = new ArrayList<>();
+        String deviceLabel = label(now);
+
+        Map<Integer, String> servicesBefore = servicesByPort(before);
+        Map<Integer, String> servicesNow = servicesByPort(now);
+
+        for (Map.Entry<Integer, String> entry : servicesNow.entrySet()) {
+            String previousService = servicesBefore.get(entry.getKey());
+            String currentService = entry.getValue();
+            if (previousService != null && currentService != null
+                    && !previousService.equals(currentService)) {
+                events.add("[SERVIÇO MUDOU] " + deviceLabel + " porta " + entry.getKey()
+                        + ": " + previousService + " -> " + currentService);
+            }
+        }
+
+        return events;
+    }
+
+    private Map<Integer, String> servicesByPort(Device device) {
+        Map<Integer, String> map = new HashMap<>();
+        for (var info : device.getPortInfos()) {
+            if (info.service() != null) {
+                map.put(info.port(), info.service());
+            }
+        }
+        return map;
     }
 
     private Map<String, Device> indexForMac(List<Device> devices) {
