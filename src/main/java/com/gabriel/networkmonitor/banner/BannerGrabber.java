@@ -101,20 +101,79 @@ public class BannerGrabber {
         if (banner == null) {
             return null;
         }
-        String cleaned = banner
-                .replaceAll("[\\x00-\\x1f\\x7f]", " ")
-                .trim();
-        if (cleaned.isEmpty()) {
+
+        int lineEnd = -1;
+        for (int i = 0; i < banner.length(); i++) {
+            char c = banner.charAt(i);
+            if (c == '\n' || c == '\r') {
+                lineEnd = i;
+                break;
+            }
+        }
+        String firstLine = cleanLine(lineEnd >= 0 ? banner.substring(0, lineEnd) : banner);
+        if (firstLine.isEmpty()) {
             return null;
         }
-        if (cleaned.length() > maxBytes) {
-            cleaned = cleaned.substring(0, maxBytes);
+
+        if (firstLine.startsWith("HTTP/")) {
+            return sanitizeHttpHeaders(banner, lineEnd, firstLine);
         }
-        int newline = cleaned.indexOf('\n');
-        if (newline > 0) {
-            cleaned = cleaned.substring(0, newline).trim();
+
+        return truncate(firstLine);
+    }
+
+    private String sanitizeHttpHeaders(String banner, int lineEnd, String firstLine) {
+        StringBuilder result = new StringBuilder(firstLine);
+        int pos = lineEnd;
+        int headerLines = 1;
+
+        while (pos < banner.length() && headerLines < 20 && result.length() < maxBytes) {
+            if (banner.charAt(pos) == '\r') {
+                pos++;
+            }
+            if (pos < banner.length() && banner.charAt(pos) == '\n') {
+                pos++;
+            }
+
+            int nextEnd = -1;
+            for (int i = pos; i < banner.length(); i++) {
+                char c = banner.charAt(i);
+                if (c == '\n' || c == '\r') {
+                    nextEnd = i;
+                    break;
+                }
+            }
+            String line = cleanLine(nextEnd >= 0 ? banner.substring(pos, nextEnd) : banner.substring(pos));
+            if (line.isEmpty()) {
+                break;
+            }
+            result.append('\n').append(line);
+            headerLines++;
+            if (nextEnd < 0) {
+                break;
+            }
+            pos = nextEnd;
         }
-        return cleaned.isEmpty() ? null : cleaned;
+
+        return truncate(result.toString());
+    }
+
+    private String cleanLine(String line) {
+        StringBuilder sb = new StringBuilder();
+        for (int i = 0; i < line.length(); i++) {
+            char c = line.charAt(i);
+            if (c >= 32 && c < 127) {
+                sb.append(c);
+            }
+        }
+        return sb.toString().trim();
+    }
+
+    private String truncate(String value) {
+        if (value.length() > maxBytes) {
+            return value.substring(0, maxBytes);
+        }
+        return value;
     }
 
     private static Set<Integer> parsePorts(String value) {

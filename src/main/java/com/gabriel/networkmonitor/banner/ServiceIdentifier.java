@@ -50,13 +50,15 @@ public class ServiceIdentifier {
     }
 
     private Optional<String> parseBanner(String banner) {
-        Matcher ssh = SSH.matcher(banner.trim());
+        String firstLine = banner.lines().findFirst().orElse(banner).trim();
+
+        Matcher ssh = SSH.matcher(firstLine);
         if (ssh.matches()) {
             String version = ssh.group(2).trim();
             return Optional.of(version.isEmpty() ? "ssh" : "ssh " + version);
         }
 
-        if (HTTP_STATUS.matcher(banner.trim()).find()) {
+        if (HTTP_STATUS.matcher(firstLine).find()) {
             Matcher server = HTTP_SERVER.matcher(banner);
             if (server.find()) {
                 return Optional.of("http " + server.group(1).trim());
@@ -64,19 +66,19 @@ public class ServiceIdentifier {
             return Optional.of("http");
         }
 
-        Matcher smtp = SMTP.matcher(banner.trim());
+        Matcher smtp = SMTP.matcher(firstLine);
         if (smtp.matches()) {
             String extra = smtp.group(1) != null ? smtp.group(1).trim() : "";
             return Optional.of(extra.isEmpty() ? "smtp" : "smtp" + extra);
         }
 
-        Matcher vsftp = VSFTP.matcher(banner.trim());
+        Matcher vsftp = VSFTP.matcher(firstLine);
         if (vsftp.matches()) {
             String version = vsftp.group(1) != null ? vsftp.group(1).trim() : "";
             return Optional.of(version.isEmpty() ? "ftp vsFTPd" : "ftp vsFTPd " + version);
         }
 
-        if (FTP.matcher(banner.trim()).matches()) {
+        if (FTP.matcher(firstLine).matches()) {
             return Optional.of("ftp");
         }
 
@@ -86,7 +88,7 @@ public class ServiceIdentifier {
         if (banner.contains("PostgreSQL")) {
             return Optional.of("postgresql");
         }
-        if (banner.startsWith("-ERR") || banner.contains("redis")) {
+        if (firstLine.startsWith("-ERR") || banner.contains("redis")) {
             return Optional.of("redis");
         }
 

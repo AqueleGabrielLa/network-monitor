@@ -20,6 +20,15 @@ class ServiceIdentifierTest {
     }
 
     @Test
+    void shouldIgnoreBinaryJunkAfterSshGreeting() {
+        Optional<String> service = identifier.identify(22,
+                "SSH-2.0-dropbear_2020.80\n\u0000\u0001binary junk");
+
+        assertTrue(service.isPresent());
+        assertEquals("ssh dropbear_2020.80", service.get());
+    }
+
+    @Test
     void shouldIdentifyHttpFromServerHeader() {
         Optional<String> service = identifier.identify(80,
                 "HTTP/1.1 200 OK\r\nServer: nginx/1.25.3\r\nContent-Length: 0\r\n");

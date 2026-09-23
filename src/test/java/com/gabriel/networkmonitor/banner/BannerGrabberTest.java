@@ -21,6 +21,21 @@ class BannerGrabberTest {
     }
 
     @Test
+    void shouldKeepOnlyFirstLineWhenBinaryDataFollowsGreeting() {
+        String polluted = "SSH-2.0-dropbear_2020.80\r\n"
+                + "\u0000\u0001\u0002binary-kex-data\u00ff\u00fe";
+        BannerSocketFake factory = new BannerSocketFake()
+                .withBanner(22, polluted);
+        BannerGrabber grabber = new BannerGrabber(factory);
+
+        String banner = grabber.grab("192.168.0.10", 22);
+
+        assertNotNull(banner);
+        assertEquals("SSH-2.0-dropbear_2020.80", banner);
+        assertFalse(banner.contains("binary"));
+    }
+
+    @Test
     void shouldReturnNullOnTimeout() {
         BannerSocketFake factory = new BannerSocketFake()
                 .withTimeout(80);
