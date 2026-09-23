@@ -27,6 +27,11 @@ public class AppConfig {
         return value != null ? Integer.parseInt(value) : defaultValue;
     }
 
+    public static boolean getBoolean(String key, boolean defaultValue) {
+        String value = properties.getProperty(key);
+        return value != null ? Boolean.parseBoolean(value) : defaultValue;
+    }
+
     public static int[] getIntArray(String key, int[] defaultValue) {
         String value = properties.getProperty(key);
         if (value == null || value.isBlank()) {
