@@ -205,6 +205,8 @@ Derive a human-readable service name and version from the banner, with a known-p
 
 **Output format for service:** prefer `service` (short name) in DB; compose display label in `ScannerService.describe()`.
 
+**Implemented:** `ServiceIdentifier.identify()` returns the short service name only (`ssh`, `http`, …). Version/server token is kept in the raw `banner` and composed at display time via `ServiceIdentifier.displayLabel()` / `versionFrom()`. `ChangeDetector` fingerprints `service` + `banner` so both service-type swaps and version upgrades emit `[SERVIÇO MUDOU]`.
+
 ---
 
 ### T5. OS fingerprint via pcap4j (optional / stretch)
@@ -349,16 +351,20 @@ ChangeDetector.detect(previous, current)
 
 ## Acceptance Criteria
 
-- [ ] Migration `V002` adds `banner`, `service`, `os_guess` without breaking `V001` data
-- [ ] BannerGrabber captures banners for SSH/SMTP/HTTP without hanging the scan
-- [ ] HTTP ports receive a minimal GET probe when passive read is empty
-- [ ] ServiceIdentifier maps common ports and banners to service names
-- [ ] `scan_port.banner` and `scan_port.service` are persisted and loaded correctly
-- [ ] Output shows service (and version when available) next to each port
-- [ ] `device.os_guess` populated when fingerprint enabled; `NULL` otherwise
-- [ ] Banner/service failures on one port never abort the full scan
-- [ ] Unit tests run without real network (fake sockets only)
-- [ ] `fingerprint.os.enabled=false` skips pcap entirely (no native dependency required to run default mode)
+- [x] Migration `V002` adds `banner`, `service`, `os_guess` without breaking `V001` data
+- [x] BannerGrabber captures banners for SSH/SMTP/HTTP without hanging the scan
+- [x] HTTP ports receive a minimal GET probe when passive read is empty
+- [x] ServiceIdentifier maps common ports and banners to service names
+- [x] `scan_port.banner` and `scan_port.service` are persisted and loaded correctly
+- [x] Output shows service (and version when available) next to each port
+- [ ] `device.os_guess` populated when fingerprint enabled; `NULL` otherwise — **deferred (T5)**
+- [x] Banner/service failures on one port never abort the full scan
+- [x] Unit tests run without real network (fake sockets only)
+- [ ] `fingerprint.os.enabled=false` skips pcap entirely (no native dependency required to run default mode) — **deferred (T5)**
+
+### Deferred: T5 — OS fingerprint via pcap4j
+
+**Decision (Phase 2 close):** T5 is deferred. The `device.os_guess` column and `Device.withOsGuess()` exist so the pipeline is ready, but no `OsFingerprinter` is implemented yet. Rationale: keep the core free of native dependencies (`libpcap`) and elevated privileges; revisit as a separate task when dual-stack/IPv6 or a dedicated fingerprint phase is scheduled.
 
 ---
 
