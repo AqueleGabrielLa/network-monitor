@@ -1,6 +1,8 @@
 package com.gabriel.networkmonitor.detector;
 
+import com.gabriel.networkmonitor.banner.ServiceIdentifier;
 import com.gabriel.networkmonitor.model.Device;
+import com.gabriel.networkmonitor.model.PortInfo;
 
 import java.util.*;
 
@@ -68,28 +70,42 @@ public class ChangeDetector {
         List<String> events = new ArrayList<>();
         String deviceLabel = label(now);
 
-        Map<Integer, String> servicesBefore = servicesByPort(before);
-        Map<Integer, String> servicesNow = servicesByPort(now);
+        Map<Integer, PortInfo> portsBefore = portsByPort(before);
+        Map<Integer, PortInfo> portsNow = portsByPort(now);
 
-        for (Map.Entry<Integer, String> entry : servicesNow.entrySet()) {
-            String previousService = servicesBefore.get(entry.getKey());
-            String currentService = entry.getValue();
-            if (previousService != null && currentService != null
-                    && !previousService.equals(currentService)) {
+        for (Map.Entry<Integer, PortInfo> entry : portsNow.entrySet()) {
+            PortInfo previous = portsBefore.get(entry.getKey());
+            if (previous == null) {
+                continue;
+            }
+            PortInfo current = entry.getValue();
+            String previousLabel = fingerprint(previous);
+            String currentLabel = fingerprint(current);
+            if (!previousLabel.equals(currentLabel)) {
                 events.add("[SERVIÇO MUDOU] " + deviceLabel + " porta " + entry.getKey()
-                        + ": " + previousService + " -> " + currentService);
+                        + ": " + previousLabel + " -> " + currentLabel);
             }
         }
 
         return events;
     }
 
-    private Map<Integer, String> servicesByPort(Device device) {
-        Map<Integer, String> map = new HashMap<>();
+    private String fingerprint(PortInfo info) {
+        String label = ServiceIdentifier.displayLabel(info.port(), info.banner(), info.service());
+        if (label != null) {
+            return label;
+        }
+        if (info.banner() != null && !info.banner().isBlank()) {
+            String firstLine = info.banner().lines().findFirst().orElse(info.banner()).trim();
+            return firstLine.length() > 60 ? firstLine.substring(0, 60) : firstLine;
+        }
+        return "unknown";
+    }
+
+    private Map<Integer, PortInfo> portsByPort(Device device) {
+        Map<Integer, PortInfo> map = new HashMap<>();
         for (var info : device.getPortInfos()) {
-            if (info.service() != null) {
-                map.put(info.port(), info.service());
-            }
+            map.put(info.port(), info);
         }
         return map;
     }

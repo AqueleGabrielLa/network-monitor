@@ -15,8 +15,15 @@ class ServiceIdentifierTest {
         Optional<String> service = identifier.identify(22, "SSH-2.0-OpenSSH_9.6p1 Ubuntu-3");
 
         assertTrue(service.isPresent());
-        assertTrue(service.get().startsWith("ssh"));
-        assertTrue(service.get().contains("OpenSSH_9.6p1"));
+        assertEquals("ssh", service.get());
+    }
+
+    @Test
+    void shouldExtractSshVersionFromBanner() {
+        String version = ServiceIdentifier.versionFrom("SSH-2.0-OpenSSH_9.6p1 Ubuntu-3");
+
+        assertNotNull(version);
+        assertTrue(version.contains("OpenSSH_9.6p1"));
     }
 
     @Test
@@ -25,7 +32,9 @@ class ServiceIdentifierTest {
                 "SSH-2.0-dropbear_2020.80\n\u0000\u0001binary junk");
 
         assertTrue(service.isPresent());
-        assertEquals("ssh dropbear_2020.80", service.get());
+        assertEquals("ssh", service.get());
+        assertEquals("dropbear_2020.80", ServiceIdentifier.versionFrom(
+                "SSH-2.0-dropbear_2020.80\n\u0000\u0001binary junk"));
     }
 
     @Test
@@ -34,8 +43,9 @@ class ServiceIdentifierTest {
                 "HTTP/1.1 200 OK\r\nServer: nginx/1.25.3\r\nContent-Length: 0\r\n");
 
         assertTrue(service.isPresent());
-        assertTrue(service.get().startsWith("http"));
-        assertTrue(service.get().contains("nginx/1.25.3"));
+        assertEquals("http", service.get());
+        assertEquals("nginx/1.25.3", ServiceIdentifier.versionFrom(
+                "HTTP/1.1 200 OK\r\nServer: nginx/1.25.3\r\nContent-Length: 0\r\n"));
     }
 
     @Test
@@ -44,6 +54,7 @@ class ServiceIdentifierTest {
 
         assertTrue(service.isPresent());
         assertEquals("http", service.get());
+        assertNull(ServiceIdentifier.versionFrom("HTTP/1.1 404 Not Found"));
     }
 
     @Test
@@ -51,8 +62,8 @@ class ServiceIdentifierTest {
         Optional<String> service = identifier.identify(25, "220 mail.example.com ESMTP Postfix");
 
         assertTrue(service.isPresent());
-        assertTrue(service.get().startsWith("smtp"));
-        assertTrue(service.get().contains("Postfix"));
+        assertEquals("smtp", service.get());
+        assertEquals("Postfix", ServiceIdentifier.versionFrom("220 mail.example.com ESMTP Postfix"));
     }
 
     @Test
@@ -83,7 +94,8 @@ class ServiceIdentifierTest {
         Optional<String> service = identifier.identify(21, "220 (vsFTPd 3.0.5)");
 
         assertTrue(service.isPresent());
-        assertTrue(service.get().contains("vsFTPd"));
+        assertEquals("ftp", service.get());
+        assertEquals("vsFTPd 3.0.5", ServiceIdentifier.versionFrom("220 (vsFTPd 3.0.5)"));
     }
 
     @Test
@@ -92,5 +104,28 @@ class ServiceIdentifierTest {
 
         assertTrue(service.isPresent());
         assertEquals("mysql", service.get());
+    }
+
+    @Test
+    void shouldComposeDisplayLabelWithServiceAndVersion() {
+        String label = ServiceIdentifier.displayLabel(22,
+                "SSH-2.0-OpenSSH_9.6p1 Ubuntu-3", "ssh");
+
+        assertEquals("ssh OpenSSH_9.6p1 Ubuntu-3", label);
+    }
+
+    @Test
+    void shouldComposeDisplayLabelWithServiceOnlyWhenNoVersion() {
+        String label = ServiceIdentifier.displayLabel(443, "garbage", "https");
+
+        assertEquals("https", label);
+    }
+
+    @Test
+    void shouldResolveServiceFromBannerWhenServiceFieldIsNull() {
+        String label = ServiceIdentifier.displayLabel(22,
+                "SSH-2.0-OpenSSH_9.6p1", null);
+
+        assertEquals("ssh OpenSSH_9.6p1", label);
     }
 }

@@ -105,8 +105,9 @@ public class ScannerService {
         } else {
             for (PortInfo info : device.getPortInfos()) {
                 sb.append("  • ").append(info.port()).append("/tcp");
-                if (info.service() != null) {
-                    sb.append("   ").append(info.service());
+                String label = ServiceIdentifier.displayLabel(info.port(), info.banner(), info.service());
+                if (label != null) {
+                    sb.append("   ").append(label);
                 }
                 sb.append("\n");
             }

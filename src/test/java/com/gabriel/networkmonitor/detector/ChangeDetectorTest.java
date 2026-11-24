@@ -109,9 +109,9 @@ class ChangeDetectorTest {
     @Test
     void shouldDetectServiceChange() {
         Device previous = new Device("aa:bb:cc:00:00:01", "192.168.0.1", null, null,
-                List.of(new PortInfo(80, "http Apache/2.4.0", null)), null);
+                List.of(new PortInfo(80, "http", "HTTP/1.1 200 OK\r\nServer: Apache/2.4.0\r\n")), null);
         Device current = new Device("aa:bb:cc:00:00:01", "192.168.0.1", null, null,
-                List.of(new PortInfo(80, "http nginx/1.25.3", null)), null);
+                List.of(new PortInfo(80, "http", "HTTP/1.1 200 OK\r\nServer: nginx/1.25.3\r\n")), null);
 
         List<String> changes = detector.detect(List.of(previous), List.of(current));
 
@@ -122,11 +122,38 @@ class ChangeDetectorTest {
     }
 
     @Test
+    void shouldDetectServiceTypeChange() {
+        Device previous = new Device("aa:bb:cc:00:00:01", "192.168.0.1", null, null,
+                List.of(new PortInfo(8080, "http", null)), null);
+        Device current = new Device("aa:bb:cc:00:00:01", "192.168.0.1", null, null,
+                List.of(new PortInfo(8080, "redis", null)), null);
+
+        List<String> changes = detector.detect(List.of(previous), List.of(current));
+
+        assertEquals(1, changes.size());
+        assertTrue(changes.get(0).contains("SERVIÇO MUDOU"));
+        assertTrue(changes.get(0).contains("http"));
+        assertTrue(changes.get(0).contains("redis"));
+    }
+
+    @Test
     void shouldNotDetectServiceChangeWhenServiceUnchanged() {
         Device previous = new Device("aa:bb:cc:00:00:01", "192.168.0.1", null, null,
-                List.of(new PortInfo(80, "http nginx/1.25.3", null)), null);
+                List.of(new PortInfo(80, "http", "HTTP/1.1 200 OK\r\nServer: nginx/1.25.3\r\n")), null);
         Device current = new Device("aa:bb:cc:00:00:01", "192.168.0.1", null, null,
-                List.of(new PortInfo(80, "http nginx/1.25.3", null)), null);
+                List.of(new PortInfo(80, "http", "HTTP/1.1 200 OK\r\nServer: nginx/1.25.3\r\n")), null);
+
+        List<String> changes = detector.detect(List.of(previous), List.of(current));
+
+        assertTrue(changes.isEmpty());
+    }
+
+    @Test
+    void shouldNotDetectServiceChangeWhenBannerAndServiceMatch() {
+        Device previous = new Device("aa:bb:cc:00:00:01", "192.168.0.1", null, null,
+                List.of(new PortInfo(22, "ssh", "SSH-2.0-OpenSSH_9.6p1")), null);
+        Device current = new Device("aa:bb:cc:00:00:01", "192.168.0.1", null, null,
+                List.of(new PortInfo(22, "ssh", "SSH-2.0-OpenSSH_9.6p1")), null);
 
         List<String> changes = detector.detect(List.of(previous), List.of(current));
 
